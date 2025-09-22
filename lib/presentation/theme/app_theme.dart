@@ -17,6 +17,24 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: premiumWhite,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: goldAccent,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: goldAccent, width: 2),
+          foregroundColor: goldAccent,
+          backgroundColor: premiumWhite,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
       colorScheme: ColorScheme.light(
         primary: goldAccent,
         onPrimary: premiumBlack,
@@ -95,6 +113,24 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: premiumBlack,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: goldAccent,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: goldAccent, width: 2),
+          foregroundColor: goldAccent,
+          backgroundColor: Colors.transparent,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
       colorScheme: ColorScheme.dark(
         primary: goldAccent,
         onPrimary: premiumBlack,
@@ -153,8 +189,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFCF6679)),
         ),
-        labelStyle: TextStyle(color: premiumWhite.withOpacity(0.7)),
-        hintStyle: TextStyle(color: premiumWhite.withOpacity(0.5)),
+        labelStyle: TextStyle(color: premiumWhite.withOpacity(0.85)),
+        hintStyle: TextStyle(color: premiumWhite.withOpacity(0.65)),
       ),
       cardTheme: CardThemeData(
         elevation: 4,

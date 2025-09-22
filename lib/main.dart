@@ -1,27 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import 'core/di/dependency_injection.dart';
 import 'core/config/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/pages/auth/auth_gate.dart';
 import 'package:courseven/presentation/controllers/theme_controller.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  print('Iniciando CourSEVEN...');
+  debugPrint('[INIT] Iniciando aplicación CourSEVEN');
 
-  // Initialize dependencies
-  print('Inicializando dependencias...');
+  // Configuras las dependencias necesarias para el funcionamiento de la app
+  debugPrint('[DEPENDENCIES] Iniciando configuración de dependencias');
+  // Cargas las variables de entorno desde el archivo .env
+  try {
+    debugPrint('[ENV] Cargando variables de entorno');
+    await dotenv.load(fileName: '.env');
+    debugPrint('[ENV] Variables de entorno configuradas correctamente');
+    if (kDebugMode) {
+      debugPrint('[ENV] ROBLE_DB_NAME: ${dotenv.maybeGet('ROBLE_DB_NAME')}');
+      debugPrint(
+          '[ENV] ROBLE_READONLY_EMAIL: ${dotenv.maybeGet('ROBLE_READONLY_EMAIL')}');
+      debugPrint(
+          '[ENV] ROBLE_READONLY_PASSWORD configurado: ${dotenv.maybeGet('ROBLE_READONLY_PASSWORD') != null}');
+    }
+  } catch (e) {
+    debugPrint('[ENV] Error al cargar variables de entorno: $e');
+  }
   await DependencyInjection.init();
-  print('Dependencias inicializadas');
+  debugPrint('[DEPENDENCIES] Dependencias configuradas exitosamente');
 
-  // Initialize theme controller
-  print('Inicializando ThemeController...');
+  // Inicializas el controlador de tema para manejar modo claro/oscuro
+  debugPrint('[THEME] Configurando controlador de tema');
   Get.put(ThemeController());
-  print('ThemeController inicializado');
+  debugPrint('[THEME] Controlador de tema configurado');
 
-  print('Lanzando app...');
+  debugPrint('[INIT] Lanzando aplicación');
   runApp(const CourSEVENApp());
 }
 
@@ -30,10 +47,10 @@ class CourSEVENApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print('Construyendo CourSEVENApp...');
+    debugPrint('[UI] Construyendo widget principal de la aplicación');
     return GetBuilder<ThemeController>(
       builder: (themeController) {
-        print('ThemeController encontrado, construyendo MaterialApp...');
+        debugPrint('[UI] Aplicando configuración de tema');
         return GetMaterialApp(
           title: 'CourSEVEN',
           debugShowCheckedModeBanner: false,

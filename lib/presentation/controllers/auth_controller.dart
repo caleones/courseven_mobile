@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../data/services/roble_service.dart';
@@ -38,25 +39,27 @@ class AuthController extends GetxController {
     _loadStoredSession();
   }
 
-  // cuando abre la app reviso si ya tenía sesión guardada
+  // Verificas si ya existe una sesión guardada al abrir la app
   Future<void> _loadStoredSession() async {
     try {
-      print('Iniciando carga de sesión...');
+      debugPrint('[AUTH_CONTROLLER] Iniciando carga de sesión almacenada');
 
       final accessToken = await _secureStorage.read(key: _accessTokenKey);
       final storedDatabase = await _secureStorage.read(key: _databaseKey);
       final keepLoggedInStr = await _secureStorage.read(key: 'keep_logged_in');
       final keepLoggedIn = keepLoggedInStr == 'true';
 
-      print(
-          'Datos encontrados - Token: ${accessToken != null}, Database: ${storedDatabase != null}, KeepLoggedIn: $keepLoggedIn');
+      if (kDebugMode) {
+        debugPrint(
+            '[AUTH_CONTROLLER] Datos encontrados - Token: ${accessToken != null}, Database: ${storedDatabase != null}, KeepLoggedIn: $keepLoggedIn');
+      }
 
       if (accessToken != null && storedDatabase != null && keepLoggedIn) {
-        print('Restaurando sesión persistente...');
+        debugPrint('[AUTH_CONTROLLER] Restaurando sesión persistente');
         _selectedDatabase.value = storedDatabase;
 
         try {
-          // verifico que el token siga siendo válido en el servidor
+          // Verificas que el token siga siendo válido en el servidor
           final tokenCheck =
               await _authService.verifyToken(accessToken: accessToken);
           final valid =
@@ -64,13 +67,13 @@ class AuthController extends GetxController {
           if (valid) {
             final storedEmail = await _secureStorage.read(key: 'user_email');
             if (storedEmail != null && storedEmail.isNotEmpty) {
-              // busco los datos del usuario en la base de datos
+              // Buscas los datos del usuario en la base de datos
               final dbUser = await _authService.getUserFromDatabase(
                 accessToken: accessToken,
                 email: storedEmail,
               );
               if (dbUser != null) {
-                // creo el objeto User con la info de la DB
+                // Creas el objeto User con la info de la DB
                 final user = User(
                   id: dbUser['_id']?.toString() ?? '',
                   studentId: dbUser['student_id']?.toString() ?? '',
@@ -84,40 +87,44 @@ class AuthController extends GetxController {
                 );
                 _currentUser.value = user;
                 _isLoggedIn.value = true;
-                print('Sesión restaurada exitosamente desde DB');
+                debugPrint(
+                    '[AUTH_CONTROLLER] Sesión restaurada exitosamente desde DB');
               } else {
-                print('Token válido pero no se encontró usuario en DB');
+                debugPrint(
+                    '[AUTH_CONTROLLER] Token válido pero no se encontró usuario en DB');
                 _isLoggedIn.value = true;
               }
             } else {
-              print(
-                  'No hay user_email almacenado. Marcando sesión como válida.');
+              debugPrint(
+                  '[AUTH_CONTROLLER] No hay user_email almacenado. Marcando sesión como válida');
               _isLoggedIn.value = true;
             }
           } else {
-            print('Token inválido, limpiando sesión...');
+            debugPrint('[AUTH_CONTROLLER] Token inválido, limpiando sesión');
             await _clearStoredSession();
           }
         } catch (e) {
-          print('Error verificando token, limpiando sesión: $e');
+          debugPrint(
+              '[AUTH_CONTROLLER] Error verificando token, limpiando sesión: $e');
           await _clearStoredSession();
         }
       } else {
-        print(
-            'No hay sesión persistente o usuario no eligió mantener sesión');
+        debugPrint(
+            '[AUTH_CONTROLLER] No hay sesión persistente o usuario no eligió mantener sesión');
         if (accessToken != null && !keepLoggedIn) {
-          print('Limpiando tokens de sesión no persistente...');
+          debugPrint(
+              '[AUTH_CONTROLLER] Limpiando tokens de sesión no persistente');
           await _clearStoredSession();
         }
       }
     } catch (e) {
-      print('Error loading stored session: $e');
+      debugPrint('[AUTH_CONTROLLER] Error cargando sesión almacenada: $e');
       await _clearStoredSession();
     } finally {
-      // IMPORTANTE: siempre marco como inicializado para que la UI sepa que ya terminé
-      print('Marcando como inicializado');
+      // IMPORTANTE: siempre marcas como inicializado para que la UI sepa que ya terminaste
+      debugPrint('[AUTH_CONTROLLER] Marcando controlador como inicializado');
       _isInitialized.value = true;
-      update(); // le aviso a GetBuilder que cambió algo
+      update(); // Le avisas a GetBuilder que cambió algo
     }
   }
 
@@ -134,7 +141,7 @@ class AuthController extends GetxController {
     _errorMessage.value = '';
   }
 
-  // login principal - acepta email o username
+  // login principal - acepta email o username (nueva implementacion)
   Future<bool> login({
     required String identifier,
     required String password,
@@ -146,55 +153,86 @@ class AuthController extends GetxController {
     _errorMessage.value = '';
 
     try {
+      debugPrint('[AUTH_CONTROLLER] Iniciando proceso de login');
       final isEmail = identifier.contains('@');
-      final emailToUse = identifier.trim();
-      print(
-          'AuthController: Intentando login con: $identifier (isEmail=$isEmail)');
+      final cleanIdentifier = identifier.trim();
+      if (kDebugMode) {
+        debugPrint('[AUTH_CONTROLLER] Identificador: "$cleanIdentifier"');
+        debugPrint('[AUTH_CONTROLLER] Tipo: ${isEmail ? "EMAIL" : "USERNAME"}');
+        debugPrint('[AUTH_CONTROLLER] Mantener sesión: $keepLoggedIn');
+        debugPrint(
+            '[AUTH_CONTROLLER] Timestamp: ${DateTime.now().toIso8601String()}');
+      }
 
+      // Usas el método de login que valida contra la base de datos
       final response = await _authService.login(
-        email: emailToUse,
+        email: cleanIdentifier,
         password: password,
       );
 
-      print('AuthController: Login response recibido');
+      debugPrint('[AUTH_CONTROLLER] Respuesta de login recibida exitosamente');
+      if (kDebugMode) {
+        debugPrint(
+            '[AUTH_CONTROLLER] Respuesta contiene success: ${response.containsKey('success')}');
+        debugPrint('[AUTH_CONTROLLER] Success value: ${response['success']}');
+        debugPrint(
+            '[AUTH_CONTROLLER] Contiene data: ${response.containsKey('data')}');
+      }
 
       if (response['success'] == true && response['data'] != null) {
-        // construyo el objeto User con lo que me devuelve ROBLE
+        debugPrint('[AUTH_CONTROLLER] Procesando datos de usuario');
+
+        // Construyes el objeto User con los datos de la base de datos
         final userData = response['data'];
+        if (kDebugMode) {
+          debugPrint('[AUTH_CONTROLLER] Datos de usuario recibidos:');
+          debugPrint('[AUTH_CONTROLLER]   - ID: ${userData['_id']}');
+          debugPrint('[AUTH_CONTROLLER]   - Email: ${userData['email']}');
+          debugPrint(
+              '[AUTH_CONTROLLER]   - Nombre: ${userData['first_name']} ${userData['last_name']}');
+          debugPrint('[AUTH_CONTROLLER]   - Username: ${userData['username']}');
+        }
+
         final user = User(
           id: userData['_id'] ?? userData['id'] ?? '',
           studentId: userData['student_id'] ?? userData['studentId'] ?? '',
-          email: userData['email'] ?? emailToUse,
+          email: userData['email'] ?? cleanIdentifier,
           firstName: userData['first_name'] ?? userData['firstName'] ?? '',
           lastName: userData['last_name'] ?? userData['lastName'] ?? '',
           username: userData['username'] ??
               (userData['email'] != null
                   ? userData['email'].toString().split('@')[0]
-                  : identifier),
+                  : cleanIdentifier),
           createdAt: userData['created_at'] != null
               ? DateTime.parse(userData['created_at'])
               : DateTime.now(),
         );
 
+        print('AuthController: Usuario creado exitosamente: ${user.fullName}');
+
         _currentUser.value = user;
         _isLoggedIn.value = true;
 
-        // guardo el token que me devolvió ROBLE
+        print('AuthController: Guardando tokens en storage...');
+
+        // guardo el token personalizado
         final accessToken = response['access_token'] ??
             response['token'] ??
             response['accessToken'];
         if (accessToken != null) {
           await _secureStorage.write(key: _accessTokenKey, value: accessToken);
+          print('AuthController: AccessToken guardado');
         }
 
-        // si hay refresh token también lo guardo
+        // guardo refresh token
         final refreshToken =
             response['refresh_token'] ?? response['refreshToken'];
         if (refreshToken != null) {
           await _secureStorage.write(key: 'refresh_token', value: refreshToken);
+          print('AuthController: RefreshToken guardado');
         }
 
-        // guardo si el usuario quiere mantener la sesión y su email
+        // guardo preferencias de sesion y datos del usuario
         await _secureStorage.write(
             key: 'keep_logged_in', value: keepLoggedIn.toString());
         await _secureStorage.write(key: 'user_email', value: user.email);
@@ -202,8 +240,14 @@ class AuthController extends GetxController {
         await _secureStorage.write(
             key: _databaseKey, value: _selectedDatabase.value);
 
+        print('AuthController: Datos de sesión guardados exitosamente');
+
         _setLoading(false);
         update(); // aviso a la UI que cambió algo
+
+        print(
+            'AuthController: Login completado exitosamente para: ${user.email}');
+        print('=== LOGIN PROCESO COMPLETADO ===');
 
         Get.snackbar(
           'Bienvenido',
@@ -215,9 +259,15 @@ class AuthController extends GetxController {
 
         return true;
       } else {
-        final errorMessage = response['message'] ?? 'Error en login';
+        print('AuthController: Error en respuesta de login');
+        print('AuthController: Success: ${response['success']}');
+        print('AuthController: Message: ${response['message']}');
+
+        final errorMessage = response['message'] ?? 'Credenciales inválidas';
         _errorMessage.value = errorMessage;
         _setLoading(false);
+
+        print('AuthController: Mostrando error al usuario: $errorMessage');
 
         Get.snackbar(
           'Error de autenticación',
@@ -230,9 +280,15 @@ class AuthController extends GetxController {
         return false;
       }
     } catch (e) {
-      print('AuthController: Error en login: $e');
+      print('AuthController: Excepción capturada en login: $e');
+      print('AuthController: Tipo de error: ${e.runtimeType}');
+      print(
+          'AuthController: Timestamp del error: ${DateTime.now().toIso8601String()}');
+
       _errorMessage.value = 'Error de conexión: $e';
       _setLoading(false);
+
+      print('=== LOGIN FALLÓ ===');
 
       Get.snackbar(
         'Error',
@@ -326,8 +382,8 @@ class AuthController extends GetxController {
     }
   }
 
-  // este método maneja todo después de que el usuario pone el código
-  // verifica el email, hace login automático y crea el usuario en mi DB
+  // Verifica el email con el código y completa el registro del usuario
+  // Verifica el email, hace login automático y crea el usuario en la DB
   Future<bool> verifyEmailAndComplete({
     required String email,
     required String code,
@@ -361,49 +417,35 @@ class AuthController extends GetxController {
         print('AuthController: Email verificado exitosamente por ROBLE');
         print('Iniciando proceso de login automático...');
 
-        // hago login automático para obtener el token
-        print('Haciendo login automático después de verificación...');
+        // hago login con auth de ROBLE solo para obtener token temporal
+        print('Paso 1: Obteniendo token temporal del auth de ROBLE...');
 
         try {
-          final loginResponse = await _authService.login(
+          final authResponse = await _authService.loginAuth(
             email: normalizedEmail,
             password: password,
           );
 
-          print('Response de login automático: $loginResponse');
+          print('Response del auth de ROBLE: $authResponse');
 
-          // ROBLE me devuelve directamente accessToken, refreshToken y user
-          if (loginResponse.containsKey('accessToken') &&
-              loginResponse['accessToken'] != null) {
-            print('Login automático exitoso');
+          if (authResponse.containsKey('accessToken') &&
+              authResponse['accessToken'] != null) {
+            print('Token temporal obtenido exitosamente');
 
-            // saco los tokens de la respuesta
-            final accessToken = loginResponse['accessToken'];
-            final refreshToken = loginResponse['refreshToken'];
-            final userData = loginResponse['user'];
+            final tempAccessToken = authResponse['accessToken'];
+            final authUserData = authResponse['user'];
 
-            print(
-                'AccessToken recibido: ${accessToken != null ? "SÍ" : "NO"}');
-            print(
-                'RefreshToken recibido: ${refreshToken != null ? "SÍ" : "NO"}');
-            print('Datos de usuario recibidos: $userData');
-
-            if (accessToken == null) {
-              throw Exception('No se recibió accessToken');
-            }
-
-            // creo el usuario en mi propia base de datos
-            print('Creando usuario en base de datos...');
+            // paso 2: crear el usuario en mi propia base de datos
+            print('Paso 2: Creando usuario en tabla users...');
             try {
               final userCreationResponse =
                   await _authService.createUserInDatabase(
-                accessToken: accessToken,
+                accessToken: tempAccessToken,
                 email: normalizedEmail,
                 firstName: firstName,
                 lastName: lastName,
                 username: username ?? normalizedEmail.split('@')[0],
-                password: password,
-                studentId: userData?['id'] ?? '',
+                studentId: authUserData?['id'] ?? '',
               );
 
               print('Usuario creado en database: $userCreationResponse');
@@ -411,97 +453,123 @@ class AuthController extends GetxController {
               print('Error creando usuario en database: $userCreationError');
 
               // reviso si el usuario ya existía (por si fue un segundo intento)
-              try {
-                final existingUser = await _authService.getUserFromDatabase(
-                  accessToken: accessToken,
-                  email: normalizedEmail,
-                );
+              final existingUser = await _authService.getUserFromDatabase(
+                accessToken: tempAccessToken,
+                email: normalizedEmail,
+              );
 
-                if (existingUser != null) {
-                  print('Usuario ya existe en database: $existingUser');
-                } else {
-                  print(
-                      'No se pudo crear ni encontrar usuario en database. Se continuará con la sesión para no bloquear al usuario.');
-                  // TODO: meter esto en una cola para reintentarlo después
-                }
-              } catch (e) {
-                print(
-                    'Error comprobando existencia de usuario en database: $e');
+              if (existingUser != null) {
+                print('Usuario ya existe en database, continuando...');
+              } else {
+                throw Exception('No se pudo crear usuario en base de datos');
               }
             }
 
-            // creo el objeto User con los datos que recibí
-            final user = User(
-              id: userData?['id'] ?? '',
-              studentId:
-                  userData?['id'] ?? '', // uso el ID como studentId por ahora
-              email: userData?['email'] ?? normalizedEmail,
-              firstName: firstName, // uso los datos del formulario
-              lastName: lastName, // uso los datos del formulario
-              username: username ?? normalizedEmail.split('@')[0],
-              createdAt: DateTime.now(), // fecha actual
+            // paso 3: ahora hago login con la nueva logica (validando contra tabla users)
+            print(
+                'Paso 3: Haciendo login con nueva lógica contra tabla users...');
+            final finalLoginResponse = await _authService.login(
+              email: normalizedEmail,
+              password: password,
             );
 
-            print(
-                'Usuario creado localmente: ${user.email} (${user.firstName} ${user.lastName})');
+            print('Response de login final: $finalLoginResponse');
 
-            _currentUser.value = user;
-            _isLoggedIn.value = true;
+            if (finalLoginResponse['success'] == true &&
+                finalLoginResponse['data'] != null) {
+              // ahora tengo los datos reales de la tabla users
+              final userDataFromTable = finalLoginResponse['data'];
 
-            // guardo todos los tokens
-            if (accessToken != null) {
+              // creo el objeto User con los datos de la tabla users
+              final user = User(
+                id: userDataFromTable['_id'] ?? '',
+                studentId: userDataFromTable['student_id'] ?? '',
+                email: userDataFromTable['email'] ?? normalizedEmail,
+                firstName: userDataFromTable['first_name'] ?? firstName,
+                lastName: userDataFromTable['last_name'] ?? lastName,
+                username: userDataFromTable['username'] ??
+                    (username ?? normalizedEmail.split('@')[0]),
+                createdAt: userDataFromTable['created_at'] != null
+                    ? DateTime.parse(userDataFromTable['created_at'])
+                    : DateTime.now(),
+              );
+
+              print(
+                  'Usuario obtenido de tabla users: ${user.email} (${user.firstName} ${user.lastName})');
+
+              _currentUser.value = user;
+              _isLoggedIn.value = true;
+
+              // guardo los tokens del login final (no los temporales del auth)
+              final finalAccessToken = finalLoginResponse['accessToken'];
+              final finalRefreshToken = finalLoginResponse['refreshToken'];
+
+              if (finalAccessToken != null) {
+                await _secureStorage.write(
+                    key: _accessTokenKey, value: finalAccessToken);
+                print('AccessToken final guardado');
+              }
+              if (finalRefreshToken != null) {
+                await _secureStorage.write(
+                    key: _refreshTokenKey, value: finalRefreshToken);
+                print('RefreshToken final guardado');
+              }
               await _secureStorage.write(
-                  key: _accessTokenKey, value: accessToken);
-              print('AccessToken guardado');
+                  key: _databaseKey, value: _selectedDatabase.value);
+              print('Database key guardada');
+
+              // por defecto mantengo la sesión iniciada después del registro
+              await _secureStorage.write(key: 'keep_logged_in', value: 'true');
+              await _secureStorage.write(key: 'user_email', value: user.email);
+              print('Preferencias de sesión persistente guardadas');
+
+              _setLoading(false);
+              update();
+
+              print(
+                  'Registro completado exitosamente con nueva lógica, navegando a Home...');
+
+              Get.snackbar(
+                'Registro exitoso',
+                'Email verificado y cuenta creada correctamente',
+                backgroundColor: const Color(0xFFFFD700),
+                colorText: const Color(0xFF0D0D0D),
+                snackPosition: SnackPosition.TOP,
+              );
+
+              // voy directo al home
+              Get.offAllNamed('/home');
+              return true;
+            } else {
+              print('Login final falló - Response: $finalLoginResponse');
+              _setLoading(false);
+
+              Get.snackbar(
+                'Email verificado',
+                'Tu cuenta ha sido verificada. Ahora puedes iniciar sesión manualmente.',
+                backgroundColor: const Color(0xFFFFD700),
+                colorText: const Color(0xFF0D0D0D),
+                snackPosition: SnackPosition.TOP,
+              );
+
+              // regreso al login
+              Get.offAllNamed('/login');
+              return true;
             }
-            if (refreshToken != null) {
-              await _secureStorage.write(
-                  key: _refreshTokenKey, value: refreshToken);
-              print('RefreshToken guardado');
-            }
-            await _secureStorage.write(
-                key: _databaseKey, value: _selectedDatabase.value);
-            print('Database key guardada');
-
-            // por defecto mantengo la sesión iniciada después del registro
-            await _secureStorage.write(key: 'keep_logged_in', value: 'true');
-            await _secureStorage.write(key: 'user_email', value: user.email);
-            print(
-                'Preferencias de sesión persistente guardadas (keep_logged_in=true, user_email)');
-
-            _setLoading(false);
-            update();
-
-            print('Registro completado exitosamente, navegando a Home...');
-
-            Get.snackbar(
-              'Registro exitoso',
-              'Email verificado y cuenta creada correctamente',
-              backgroundColor: const Color(0xFFFFD700),
-              colorText: const Color(0xFF0D0D0D),
-              snackPosition: SnackPosition.TOP,
-            );
-
-            // voy directo al home
-            Get.offAllNamed('/home');
-            return true;
           } else {
-            print('Login automático falló - Response: $loginResponse');
-            // verificación ok pero login falló
-            print('Verificación exitosa pero login automático falló');
+            print('Login con auth de ROBLE falló');
             _setLoading(false);
 
             Get.snackbar(
-              'Email verificado',
-              'Tu cuenta ha sido verificada. Ahora puedes iniciar sesión.',
-              backgroundColor: const Color(0xFFFFD700),
-              colorText: const Color(0xFF0D0D0D),
+              'Error',
+              'No se pudo completar el registro. Intenta iniciar sesión manualmente.',
+              backgroundColor: Colors.red[400],
+              colorText: Colors.white,
               snackPosition: SnackPosition.TOP,
             );
 
-            // regreso al login
             Get.offAllNamed('/login');
-            return true;
+            return false;
           }
         } catch (loginError) {
           print('Error en login automático: $loginError');
@@ -608,20 +676,20 @@ class AuthController extends GetxController {
     }
   }
 
-  // cerrar sesión y limpiar todo
+  // Cierra la sesión y limpia todos los datos almacenados
   Future<void> logout() async {
     _setLoading(true);
 
     try {
-      // TODO: cuando ROBLE tenga endpoint de logout lo llamo acá
-      print('AuthController: Cerrando sesión...');
+      // TODO: cuando ROBLE tenga endpoint de logout lo conectas acá
+      debugPrint('[AUTH_CONTROLLER] Cerrando sesión');
 
-      // simulo delay
+      // Simulas delay
       await Future.delayed(const Duration(seconds: 1));
     } catch (e) {
-      print('Error durante logout: $e');
+      debugPrint('[AUTH_CONTROLLER] Error durante logout: $e');
     } finally {
-      // limpio todo local sin importar si el server respondió
+      // Limpias todo local sin importar si el server respondió
       await _clearStoredSession();
       _setLoading(false);
       update();
@@ -689,6 +757,119 @@ class AuthController extends GetxController {
         return 'Universidad Remington';
       default:
         return dbName.toUpperCase();
+    }
+  }
+
+  // Funciones para gestión de restablecimiento de contraseña
+  Future<bool> requestPasswordReset(String email) async {
+    try {
+      _isLoading.value = true;
+      _errorMessage.value = '';
+
+      final result = await _authService.requestPasswordReset(email: email);
+
+      if (result['success'] == true) {
+        Get.snackbar(
+          'Éxito',
+          'Se ha enviado un enlace de recuperación a tu correo electrónico.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+        return true;
+      } else {
+        _errorMessage.value =
+            result['message'] ?? 'Error al solicitar el reset de contraseña';
+        return false;
+      }
+    } catch (e) {
+      _errorMessage.value = 'Error de conexión: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  String? extractTokenFromUrl(String url) {
+    try {
+      return _authService.extractTokenFromResetUrl(url);
+    } catch (e) {
+      _errorMessage.value = 'URL inválida: ${e.toString()}';
+      return null;
+    }
+  }
+
+  Future<bool> validateResetToken(String token) async {
+    try {
+      _isLoading.value = true;
+      _errorMessage.value = '';
+
+      final result = await _authService.validateResetToken(token);
+
+      if (!result) {
+        _errorMessage.value = 'Token inválido o expirado';
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      _errorMessage.value = 'Error al validar el token: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  Future<bool> resetPassword(String token, String newPassword) async {
+    try {
+      _isLoading.value = true;
+      _errorMessage.value = '';
+
+      final result = await _authService.resetPassword(
+          token: token, newPassword: newPassword);
+
+      if (result['success'] == true) {
+        Get.snackbar(
+          'Éxito',
+          'Tu contraseña ha sido actualizada correctamente.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+        return true;
+      } else {
+        _errorMessage.value =
+            result['message'] ?? 'Error al cambiar la contraseña';
+        return false;
+      }
+    } catch (e) {
+      _errorMessage.value = 'Error de conexión: ${e.toString()}';
+      return false;
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
+  // ===== Disponibilidad (expuestos para la UI) =====
+  Future<bool> checkEmailAvailable(String email) async {
+    try {
+      final res = await _authService.isEmailAvailable(email);
+      print('AuthController.checkEmailAvailable("$email") => $res');
+      return res;
+    } catch (e) {
+      print('AuthController.checkEmailAvailable error: $e');
+      return false; // fail-closed
+    }
+  }
+
+  Future<bool> checkUsernameAvailable(String username) async {
+    try {
+      final res = await _authService.isUsernameAvailable(username);
+      print('AuthController.checkUsernameAvailable("$username") => $res');
+      return res;
+    } catch (e) {
+      print('AuthController.checkUsernameAvailable error: $e');
+      return false;
     }
   }
 }

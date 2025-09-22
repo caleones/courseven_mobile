@@ -36,16 +36,16 @@ class _AccountPageState extends State<AccountPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // perfil del usuario
+              // Tarjeta con información básica del perfil del usuario
               _buildProfileCard(),
               const SizedBox(height: 24),
-              // estadísticas del usuario
+              // Sección que muestra estadísticas de cursos y progreso
               _buildStatsSection(),
               const SizedBox(height: 24),
-              // información personal
+              // Sección con información personal editable
               _buildPersonalInfoSection(),
               const SizedBox(height: 24),
-              // logros y certificaciones
+              // Sección que muestra logros y certificaciones obtenidas
               _buildAchievementsSection(),
               const SizedBox(height: 24),
               // botón de cerrar sesión

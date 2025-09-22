@@ -354,19 +354,19 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  // método para verificar si un día tiene eventos (datos estáticos)
+  // Verifica si un día específico tiene eventos programados (usando datos estáticos)
   bool _hasEventOnDay(int day) {
     final events = _getAllEvents();
     return events.any((event) => event['day'] == day);
   }
 
-  // método para obtener eventos del día seleccionado
+  // Obtiene la lista de eventos para el día seleccionado
   List<Map<String, dynamic>> _getEventsForSelectedDay() {
     final events = _getAllEvents();
     return events.where((event) => event['day'] == selectedDate.day).toList();
   }
 
-  // datos estáticos de eventos
+  // Datos estáticos de eventos para demostración
   List<Map<String, dynamic>> _getAllEvents() {
     return [
       {

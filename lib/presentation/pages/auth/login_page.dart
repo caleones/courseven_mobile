@@ -6,7 +6,9 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/theme_toggle_widget.dart';
 import '../../widgets/common/starry_background.dart';
+import '../../widgets/common/password_requirements.dart';
 import '../../../core/config/app_routes.dart';
+import 'password_reset/forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -38,13 +40,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _lastNameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _forgotEmailController = TextEditingController();
 
   // UI State
   bool _isLoginMode = true;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _keepLoggedIn = false;
+  // Live validation helpers
+  // availability state is expressed via status + message
+  String _emailAvailabilityMessage = '';
+  String _usernameAvailabilityMessage = '';
+  AvailabilityStatus _emailStatus = AvailabilityStatus.ok;
+  AvailabilityStatus _usernameStatus = AvailabilityStatus.ok;
+  DateTime _lastEmailChange = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastUsernameChange = DateTime.fromMillisecondsSinceEpoch(0);
+  // debounce checks are time-based; we don't need to keep futures
 
   @override
   void initState() {
@@ -104,6 +114,75 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     });
   }
 
+  Future<void> _debouncedCheckEmailAvailability(String email) async {
+    if (_isLoginMode || email.isEmpty || !GetUtils.isEmail(email)) {
+      setState(() {
+        _emailAvailabilityMessage = '';
+      });
+      return;
+    }
+    // Show pending state immediately while debouncing
+    setState(() {
+      _emailStatus = AvailabilityStatus.pending;
+      _emailAvailabilityMessage = 'Verificando...';
+    });
+    _lastEmailChange = DateTime.now();
+    final scheduledAt = _lastEmailChange;
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (scheduledAt != _lastEmailChange) return; // user typed again
+
+    final available = await authController.checkEmailAvailable(email);
+    if (!mounted) return;
+    setState(() {
+      if (available == true) {
+        _emailStatus = AvailabilityStatus.ok;
+        _emailAvailabilityMessage = 'Correo disponible';
+      } else {
+        _emailStatus = AvailabilityStatus.error;
+        _emailAvailabilityMessage = 'Ese correo ya está en uso';
+      }
+    });
+  }
+
+  Future<void> _debouncedCheckUsernameAvailability(String username) async {
+    final candidate = username.trim();
+    // Hide hint in login mode, when empty, too short, or invalid pattern
+    if (_isLoginMode ||
+        candidate.isEmpty ||
+        candidate.length < 3 ||
+        !RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(candidate)) {
+      setState(() {
+        _usernameAvailabilityMessage = '';
+      });
+      return;
+    }
+
+    // Show pending state immediately while debouncing
+    setState(() {
+      _usernameStatus = AvailabilityStatus.pending;
+      _usernameAvailabilityMessage = 'Verificando...';
+    });
+
+    _lastUsernameChange = DateTime.now();
+    final scheduledAt = _lastUsernameChange;
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (scheduledAt != _lastUsernameChange) return;
+
+    final available = await authController.checkUsernameAvailable(candidate);
+    if (!mounted) return;
+    setState(() {
+      if (available == true) {
+        _usernameStatus = AvailabilityStatus.ok;
+        _usernameAvailabilityMessage = 'Nombre de usuario disponible';
+      } else {
+        _usernameStatus = AvailabilityStatus.error;
+        _usernameAvailabilityMessage = 'Ese nombre de usuario ya está en uso';
+      }
+    });
+  }
+
+  // No direct service access here; UI calls public controller methods above
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -115,7 +194,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _lastNameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _forgotEmailController.dispose();
     super.dispose();
   }
 
@@ -228,6 +306,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               labelText: _isLoginMode ? 'Email o nombre de usuario' : 'Email',
               prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
+              onChanged: (v) => _debouncedCheckEmailAvailability(v),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return _isLoginMode
@@ -240,16 +319,22 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 return null;
               },
             ),
+            if (!_isLoginMode && _emailAvailabilityMessage.isNotEmpty)
+              AvailabilityHint(
+                text: _emailAvailabilityMessage,
+                status: _emailStatus,
+              ),
 
             const SizedBox(height: 16),
 
-            // Campos adicionales para registro
+            // Campos que solo aparecen en modo registro
             if (!_isLoginMode) ...[
               // Campo Username
               CustomTextField(
                 controller: _usernameController,
                 labelText: 'Nombre de usuario',
                 prefixIcon: Icons.alternate_email,
+                onChanged: (v) => _debouncedCheckUsernameAvailability(v),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Ingresa tu nombre de usuario';
@@ -263,6 +348,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   return null;
                 },
               ),
+              if (_usernameAvailabilityMessage.isNotEmpty)
+                AvailabilityHint(
+                  text: _usernameAvailabilityMessage,
+                  status: _usernameStatus,
+                ),
               const SizedBox(height: 16),
 
               Row(
@@ -305,6 +395,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               labelText: 'Contraseña',
               prefixIcon: Icons.lock_outline,
               obscureText: _obscurePassword,
+              onChanged: (_) => setState(() {}),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -320,12 +411,23 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 if (value == null || value.isEmpty) {
                   return 'Por favor ingresa tu contraseña';
                 }
-                if (!_isLoginMode && value.length < 6) {
-                  return 'La contraseña debe tener al menos 6 caracteres';
+                // stricter rules for registration
+                if (!_isLoginMode) {
+                  if (value.length < 8) return 'Mínimo 8 caracteres';
+                  if (!RegExp(r'[A-Z]').hasMatch(value))
+                    return 'Incluye una mayúscula';
+                  if (!RegExp(r'[a-z]').hasMatch(value))
+                    return 'Incluye una minúscula';
+                  if (!RegExp(r'\d').hasMatch(value))
+                    return 'Incluye un número';
+                  if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value))
+                    return 'Incluye un símbolo';
                 }
                 return null;
               },
             ),
+            if (!_isLoginMode)
+              PasswordRequirements(password: _passwordController.text),
 
             const SizedBox(height: 16),
 
@@ -336,6 +438,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 labelText: 'Confirmar Contraseña',
                 prefixIcon: Icons.lock_outline,
                 obscureText: _obscureConfirmPassword,
+                onChanged: (_) => setState(() {}),
                 suffixIcon: IconButton(
                   icon: Icon(
                     _obscureConfirmPassword
@@ -358,6 +461,13 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                   }
                   return null;
                 },
+              ),
+            if (!_isLoginMode &&
+                _confirmPasswordController.text.isNotEmpty &&
+                _confirmPasswordController.text != _passwordController.text)
+              const AvailabilityHint(
+                text: 'Las contraseñas no coinciden',
+                status: AvailabilityStatus.error,
               ),
 
             // Mantener sesión iniciada (solo en login)
@@ -442,15 +552,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           // Olvidé mi contraseña
           if (_isLoginMode)
             TextButton(
-              onPressed: _showForgotPasswordDialog,
+              onPressed: () => Get.to(() => const ForgotPasswordPage()),
               child: Text(
                 '¿Olvidaste tu contraseña?',
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.color
-                      ?.withOpacity(0.7),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withOpacity(0.9)
+                      : Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.color
+                          ?.withOpacity(0.8),
                 ),
               ),
             ),
@@ -476,6 +592,44 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         Get.offAllNamed(AppRoutes.home);
       }
     } else {
+      // Revalidación autoritativa de disponibilidad antes de enviar
+      final email = _emailController.text.trim();
+      final username = _usernameController.text.trim();
+      final emailOk = await authController.checkEmailAvailable(email);
+      final usernameOk = await authController.checkUsernameAvailable(username);
+      if (!emailOk || !usernameOk) {
+        setState(() {
+          if (emailOk == true) {
+            _emailStatus = AvailabilityStatus.ok;
+            _emailAvailabilityMessage = 'Correo disponible';
+          } else {
+            _emailStatus = AvailabilityStatus.error;
+            _emailAvailabilityMessage = 'Ese correo ya está en uso';
+          }
+
+          if (usernameOk == true) {
+            _usernameStatus = AvailabilityStatus.ok;
+            _usernameAvailabilityMessage = 'Nombre de usuario disponible';
+          } else {
+            _usernameStatus = AvailabilityStatus.error;
+            _usernameAvailabilityMessage =
+                'Ese nombre de usuario ya está en uso';
+          }
+        });
+        Get.snackbar(
+          'Validación',
+          emailOk == false
+              ? 'El correo ya está registrado'
+              : usernameOk == false
+                  ? 'El nombre de usuario ya está en uso'
+                  : 'Valores no disponibles',
+          backgroundColor: Colors.red[400],
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+        return;
+      }
+
       success = await authController.register(
         email: _emailController.text.trim(),
         username: _usernameController.text.trim(),
@@ -484,59 +638,61 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         password: _passwordController.text,
       );
 
-      // Para registro, no navegar aquí - el AuthController manejará la navegación
-      // El registro exitoso lleva a email verification, no a Home directamente
+      // En registro no navegas aquí ya que el AuthController gestiona la navegación
+      // El registro exitoso lleva a verificación de email, no a Home directamente
     }
   }
+}
 
-  void _showForgotPasswordDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Recuperar Contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-                'Ingresa tu email para recibir instrucciones de recuperación.'),
-            const SizedBox(height: 16),
-            CustomTextField(
-              controller: _forgotEmailController,
-              labelText: 'Email',
-              prefixIcon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
+class AvailabilityHint extends StatelessWidget {
+  final String text;
+  final AvailabilityStatus status;
+  const AvailabilityHint({super.key, required this.text, required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = switch (status) {
+      AvailabilityStatus.ok => Colors.green,
+      AvailabilityStatus.error => Colors.redAccent,
+      AvailabilityStatus.pending =>
+        Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8) ??
+            Colors.grey,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 6.0),
+      child: Row(
+        children: [
+          if (status == AvailabilityStatus.pending)
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: color,
+              ),
+            )
+          else
+            Icon(
+              status == AvailabilityStatus.ok
+                  ? Icons.check_circle
+                  : Icons.error_outline,
+              size: 16,
+              color: color,
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancelar'),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
-          Obx(() => CustomButton(
-                text: 'Enviar',
-                onPressed: () async {
-                  if (_forgotEmailController.text.isEmail) {
-                    final success = await authController.forgotPassword(
-                      email: _forgotEmailController.text.trim(),
-                    );
-                    if (success) {
-                      Get.back();
-                      _forgotEmailController.clear();
-                    }
-                  } else {
-                    Get.snackbar(
-                      'Error',
-                      'Por favor ingresa un email válido',
-                      backgroundColor: Colors.red[400],
-                      colorText: Colors.white,
-                    );
-                  }
-                },
-                isLoading: authController.isLoading,
-              )),
         ],
       ),
     );
   }
 }
+
+enum AvailabilityStatus { ok, error, pending }

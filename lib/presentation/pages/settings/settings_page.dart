@@ -94,7 +94,7 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             }).toList(),
             onChanged: (String? newValue) {
-              // TODO: implementar cambio de tamaño de fuente
+              // TODO: implementas cambio de tamaño de fuente
             },
           ),
         ),

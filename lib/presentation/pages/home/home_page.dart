@@ -126,7 +126,40 @@ class _HomePageState extends State<HomePage> {
                   color: AppTheme.goldAccent,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bienvenido${authController.currentUser?.firstName.isNotEmpty == true ? ' ${authController.currentUser!.firstName}' : ''}',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      authController.currentUser?.fullName.isNotEmpty == true
+                          ? authController.currentUser!.fullName
+                          : (authController.currentUser?.email ?? ''),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -226,7 +259,7 @@ class _HomePageState extends State<HomePage> {
           icon: Icons.security,
         ),
         const SizedBox(height: 12),
-        // tile para ver todos los cursos
+        // Tarjeta que permite navegar a la vista completa de todos los cursos
         _buildViewAllCoursesCard(),
       ],
     );
@@ -393,7 +426,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // método para tarjetas de cursos que enseño (sin barra de progreso)
+  // Construye tarjetas para cursos que enseñas (sin barra de progreso)
   Widget _buildTeachingCourseCard({
     required String title,
     required String subtitle,
@@ -472,7 +505,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // método para el tile "Ver todos los cursos"
+  // Construye la tarjeta "Ver todos los cursos"
   Widget _buildViewAllCoursesCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -621,7 +654,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // método para mostrar el drawer de notificaciones
+  // Muestra el drawer lateral de notificaciones
   void _showNotificationsDrawer() {
     showGeneralDialog(
       context: context,

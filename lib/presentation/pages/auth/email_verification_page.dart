@@ -143,7 +143,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
       _focusNodes[index + 1].requestFocus();
     }
 
-    // Verificar si todos los campos están llenos
+    // Verificas si todos los campos están completados para proceder automáticamente
     if (value.isNotEmpty && index == 5) {
       _verifyCode();
     }

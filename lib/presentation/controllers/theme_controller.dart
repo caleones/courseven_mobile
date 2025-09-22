@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Theme Controller
+// Controlador que gestiona el estado del tema (claro/oscuro) de la aplicación
 class ThemeController extends GetxController {
   static const String _themeKey = 'isDarkMode';
 
-  // Observable for theme mode
-  final RxBool _isDarkMode = true.obs; // Default to dark theme
+  // Observable para el modo de tema
+  final RxBool _isDarkMode = true.obs; // Por defecto tema oscuro
 
-  // Getter for dark mode status
+  // Getter para el estado del modo oscuro
   bool get isDarkMode => _isDarkMode.value;
 
   @override
@@ -18,32 +18,33 @@ class ThemeController extends GetxController {
     _loadThemeFromPrefs();
   }
 
-  // Load theme preference from storage
+  // Carga la preferencia de tema desde el almacenamiento local
   Future<void> _loadThemeFromPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final isDark = prefs.getBool(_themeKey) ?? true; // Default to dark theme
+      final isDark =
+          prefs.getBool(_themeKey) ?? true; // Por defecto tema oscuro
       _isDarkMode.value = isDark;
       _updateSystemTheme();
     } catch (e) {
-      print('Error loading theme preference: $e');
-      // Default to dark theme on error
+      debugPrint('[THEME] Error cargando preferencia de tema: $e');
+      // Por defecto tema oscuro en caso de error
       _isDarkMode.value = true;
       _updateSystemTheme();
     }
   }
 
-  // Save theme preference to storage
+  // Guarda la preferencia de tema en el almacenamiento local
   Future<void> _saveThemeToPrefs(bool isDark) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_themeKey, isDark);
     } catch (e) {
-      print('Error saving theme preference: $e');
+      debugPrint('[THEME] Error guardando preferencia de tema: $e');
     }
   }
 
-  // Set light theme
+  // Establece el tema claro
   void setLightTheme() {
     _isDarkMode.value = false;
     _updateSystemTheme();
@@ -51,7 +52,7 @@ class ThemeController extends GetxController {
     update();
   }
 
-  // Set dark theme
+  // Establece el tema oscuro
   void setDarkTheme() {
     _isDarkMode.value = true;
     _updateSystemTheme();
@@ -59,7 +60,7 @@ class ThemeController extends GetxController {
     update();
   }
 
-  // Toggle between themes
+  // Alterna entre los temas claro y oscuro
   void toggleTheme() {
     if (_isDarkMode.value) {
       setLightTheme();
@@ -68,12 +69,12 @@ class ThemeController extends GetxController {
     }
   }
 
-  // Update system theme
+  // Actualiza el tema del sistema
   void _updateSystemTheme() {
     Get.changeThemeMode(_isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
   }
 
-  // Get current theme mode
+  // Obtiene el modo de tema actual
   ThemeMode get themeMode =>
       _isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
 }
