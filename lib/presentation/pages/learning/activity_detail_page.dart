@@ -238,11 +238,13 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Widget _teacherPeerReviewCard(CourseActivity activity) {
-    final canActivate = !activity.reviewing &&
-        activity.dueDate != null &&
-        DateTime.now().isAfter(activity.dueDate!);
-    final changingToPublic =
-        activity.reviewing && activity.peerVisibility == 'private';
+    // DEBUG OVERRIDE: permitir activar peer review incluso antes del due date.
+    // Lógica original (restaurar cuando termine fase de pruebas):
+    // final canActivate = !activity.reviewing &&
+    //     activity.dueDate != null &&
+    //     DateTime.now().isAfter(activity.dueDate!);
+    final canActivate = !activity.reviewing; // debug
+    final changingToPublic = activity.reviewing && activity.privateReview;
     return Card(
       margin: const EdgeInsets.only(top: 20),
       child: Padding(
@@ -254,18 +256,17 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             const SizedBox(height: 8),
             Text(activity.reviewing
-                ? 'Estado: Activo (${activity.peerVisibility == 'public' ? 'Resultados públicos' : 'Resultados privados'})'
-                : 'Aún no activado. Se puede activar tras el due date.'),
+                ? 'Estado: Activo (${activity.privateReview ? 'Resultados privados' : 'Resultados públicos'})'
+                : 'Aún no activado. (DEBUG: se permite activar antes del due date)'),
             const SizedBox(height: 12),
             Row(children: [
               ElevatedButton(
                 onPressed: canActivate
                     ? () async {
-                        final visibility = await _pickVisibility();
-                        if (visibility == null) return;
+                        final isPrivate = await _pickVisibility();
+                        if (isPrivate == null) return;
                         await activityController.requestPeerReview(
-                            activityId: activity.id,
-                            peerVisibility: visibility);
+                            activityId: activity.id, isPrivate: isPrivate);
                       }
                     : null,
                 child: const Text('Activar Peer Review'),
@@ -275,7 +276,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                 OutlinedButton(
                   onPressed: () async {
                     await activityController.requestPeerReview(
-                        activityId: activity.id, peerVisibility: 'public');
+                        activityId: activity.id, isPrivate: false);
                   },
                   child: const Text('Hacer Públicos'),
                 ),
@@ -286,8 +287,8 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
     );
   }
 
-  Future<String?> _pickVisibility() async {
-    return await showDialog<String>(
+  Future<bool?> _pickVisibility() async {
+    return await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Visibilidad resultados'),
@@ -295,10 +296,10 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
             '¿Cómo desea mostrar los resultados a estudiantes cuando completen sus evaluaciones?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, 'private'),
+              onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Privados')),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, 'public'),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Públicos')),
         ],
       ),

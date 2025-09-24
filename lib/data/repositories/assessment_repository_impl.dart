@@ -131,8 +131,10 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
     required String reviewerId,
     required List<String> groupMemberIds,
   }) async {
-    // Remove self
-    final peers = groupMemberIds.where((id) => id != reviewerId).toList();
+    // DEBUG OVERRIDE: incluir self para permitir auto-evaluación durante pruebas.
+    // Lógica original (excluir self):
+    // final peers = groupMemberIds.where((id) => id != reviewerId).toList();
+    final peers = groupMemberIds.toList();
     if (peers.isEmpty) return const [];
     final existing = await getAssessmentsByReviewer(activityId, reviewerId);
     final doneIds = existing.map((a) => a.studentId).toSet();

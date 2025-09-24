@@ -867,18 +867,20 @@ class RobleService {
     required Map<String, dynamic> updates,
   }) async {
     try {
-      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final baseUrl = _baseDatabaseUrl; // triggers normalization + log
+      final primaryUrl = '$baseUrl/$_dbName/update';
       final payload = {
         'tableName': 'activities',
-        'filter': {'_id': id},
+        'idColumn': '_id',
+        'idValue': id,
         'updates': updates,
       };
-      debugPrint('[ACTIVITIES][UPDATE] POST $url');
+      debugPrint('[ACTIVITIES][UPDATE] PUT $primaryUrl');
       if (kDebugMode) {
         debugPrint('[ACTIVITIES][UPDATE] Payload: ${jsonEncode(payload)}');
       }
-      final resp = await http.post(
-        Uri.parse(url),
+      final resp = await http.put(
+        Uri.parse(primaryUrl),
         headers: _authHeaders(accessToken),
         body: jsonEncode(payload),
       );
@@ -887,6 +889,31 @@ class RobleService {
         final data = jsonDecode(resp.body);
         return data is Map<String, dynamic> ? data : {'data': data};
       }
+
+      // If 404, attempt fallback like in updateCourse
+      if (resp.statusCode == 404) {
+        String altBase = baseUrl.endsWith('/database')
+            ? baseUrl.substring(0, baseUrl.length - '/database'.length)
+            : baseUrl;
+        final altUrl = '$altBase/$_dbName/update';
+        if (altUrl != primaryUrl) {
+          debugPrint(
+              '[ACTIVITIES][UPDATE] 404 detected. Trying fallback URL: $altUrl');
+          final resp2 = await http.put(
+            Uri.parse(altUrl),
+            headers: _authHeaders(accessToken),
+            body: jsonEncode(payload),
+          );
+          debugPrint(
+              '[ACTIVITIES][UPDATE] Fallback status: ${resp2.statusCode}');
+          if (resp2.statusCode == 200 || resp2.statusCode == 201) {
+            debugPrint('[ACTIVITIES][UPDATE] SUCCESS fallback endpoint');
+            final data = jsonDecode(resp2.body);
+            return data is Map<String, dynamic> ? data : {'data': data};
+          }
+        }
+      }
+
       final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
       throw Exception('DB update activity failed: ${resp.statusCode} $err');
     } catch (e) {
@@ -979,21 +1006,48 @@ class RobleService {
     required Map<String, dynamic> updates,
   }) async {
     try {
-      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final baseUrl = _baseDatabaseUrl; // triggers normalization + log
+      final primaryUrl = '$baseUrl/$_dbName/update';
       final payload = {
         'tableName': table,
-        'filter': {'_id': id},
+        'idColumn': '_id',
+        'idValue': id,
         'updates': updates,
       };
-      debugPrint('[GENERIC][UPDATE][$table] POST $url');
+      debugPrint('[GENERIC][UPDATE][$table] PUT $primaryUrl');
       if (kDebugMode)
         debugPrint('[GENERIC][UPDATE][$table] Payload: ' + jsonEncode(payload));
-      final resp = await http.post(Uri.parse(url),
+      final resp = await http.put(Uri.parse(primaryUrl),
           headers: _authHeaders(accessToken), body: jsonEncode(payload));
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         final data = jsonDecode(resp.body);
         return data is Map<String, dynamic> ? data : {'data': data};
       }
+
+      // If 404, attempt fallback like in updateCourse
+      if (resp.statusCode == 404) {
+        String altBase = baseUrl.endsWith('/database')
+            ? baseUrl.substring(0, baseUrl.length - '/database'.length)
+            : baseUrl;
+        final altUrl = '$altBase/$_dbName/update';
+        if (altUrl != primaryUrl) {
+          debugPrint(
+              '[GENERIC][UPDATE][$table] 404 detected. Trying fallback URL: $altUrl');
+          final resp2 = await http.put(
+            Uri.parse(altUrl),
+            headers: _authHeaders(accessToken),
+            body: jsonEncode(payload),
+          );
+          debugPrint(
+              '[GENERIC][UPDATE][$table] Fallback status: ${resp2.statusCode}');
+          if (resp2.statusCode == 200 || resp2.statusCode == 201) {
+            debugPrint('[GENERIC][UPDATE][$table] SUCCESS fallback endpoint');
+            final data = jsonDecode(resp2.body);
+            return data is Map<String, dynamic> ? data : {'data': data};
+          }
+        }
+      }
+
       final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
       throw Exception('DB update $table failed: ${resp.statusCode} $err');
     } catch (e) {

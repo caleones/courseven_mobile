@@ -33,7 +33,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
         createdAt: a.createdAt,
         isActive: a.isActive,
         reviewing: a.reviewing,
-        peerVisibility: a.peerVisibility,
+        privateReview: a.privateReview,
       ).toJson();
 
   Future<CourseActivity?> getActivityById(String activityId) async {
@@ -93,7 +93,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
         'due_date': activity.dueDate!.toIso8601String(),
       'is_active': activity.isActive,
       'reviewing': activity.reviewing,
-      'peer_visibility': activity.peerVisibility,
+      'private_review': activity.privateReview,
     };
     final res = await _service.updateActivity(
       accessToken: token,

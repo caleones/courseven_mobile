@@ -1,4 +1,4 @@
-/// Entidad de dominio para representar una actividad asignada a una categoría
+/// Entidad de dominio que representa una actividad asignada a una categoría
 class CourseActivity {
   final String id;
   final String title;
@@ -13,8 +13,8 @@ class CourseActivity {
   /// Indica si la actividad está en fase de peer review (habilitada por el profesor tras el due date)
   final bool reviewing;
 
-  /// Visibilidad de los resultados del peer review para estudiantes: 'public' o 'private'
-  final String peerVisibility; // values: 'public' | 'private'
+  /// Visibilidad de los resultados del peer review para estudiantes: true = private, false = public
+  final bool privateReview;
 
   const CourseActivity({
     required this.id,
@@ -27,7 +27,7 @@ class CourseActivity {
     required this.createdAt,
     this.isActive = true,
     this.reviewing = false,
-    this.peerVisibility = 'private',
+    this.privateReview = true,
   });
 
   CourseActivity copyWith({
@@ -41,7 +41,7 @@ class CourseActivity {
     DateTime? createdAt,
     bool? isActive,
     bool? reviewing,
-    String? peerVisibility,
+    bool? privateReview,
   }) {
     return CourseActivity(
       id: id ?? this.id,
@@ -54,7 +54,7 @@ class CourseActivity {
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
       reviewing: reviewing ?? this.reviewing,
-      peerVisibility: peerVisibility ?? this.peerVisibility,
+      privateReview: privateReview ?? this.privateReview,
     );
   }
 }

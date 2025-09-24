@@ -251,17 +251,17 @@ class PeerReviewController extends GetxController {
     if (!enablePeerReview.value) return false;
     if (!activity.reviewing) return false;
     if (!isMemberOfGroup) return false;
-    // Debe haber pasado dueDate (por regla de activación ya pasó, pero defensivo)
-    if (activity.dueDate != null &&
-        DateTime.now().isBefore(activity.dueDate!)) {
-      return false;
-    }
+    // DEBUG OVERRIDE: permitir reviews antes del due date.
+    // Lógica original (restaurar después de pruebas):
+    // if (activity.dueDate != null && DateTime.now().isBefore(activity.dueDate!)) {
+    //   return false;
+    // }
     return true;
   }
 
   /// Estudiante puede ver resultados agregados (public) cuando completó todas sus evaluaciones
   bool canStudentSeePublicResults(CourseActivity activity) {
-    if (activity.peerVisibility != 'public') return false;
+    if (activity.privateReview) return false; // si es private no puede ver
     return isCompleted(activity.id);
   }
 

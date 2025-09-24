@@ -44,6 +44,7 @@ class _PeerReviewListPageState extends State<PeerReviewListPage> {
   Widget build(BuildContext context) {
     final summary = prCtrl.activitySummary(activityId);
     final pending = prCtrl.pendingPeers(activityId);
+    // DEBUG: mostrar etiqueta diferente si el peer es self
     final progress = prCtrl.progressFor(activityId);
     return Scaffold(
       appBar: AppBar(title: const Text('Peer Review')),
@@ -66,7 +67,10 @@ class _PeerReviewListPageState extends State<PeerReviewListPage> {
                 Text('Pendientes',
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                ...pending.map((pid) => _peerTile(pid, isDone: false)).toList(),
+                ...pending
+                    .map((pid) => _peerTile(pid,
+                        isDone: false, isSelf: pid == prCtrl.currentUserId))
+                    .toList(),
                 const SizedBox(height: 20),
               ],
               if (assessments.isNotEmpty) ...[
@@ -75,7 +79,9 @@ class _PeerReviewListPageState extends State<PeerReviewListPage> {
                 const SizedBox(height: 8),
                 ...assessments
                     .where((a) => a.reviewerId == prCtrl.currentUserId)
-                    .map((a) => _peerTile(a.studentId, isDone: true))
+                    .map((a) => _peerTile(a.studentId,
+                        isDone: true,
+                        isSelf: a.studentId == prCtrl.currentUserId))
                     .toList(),
                 const SizedBox(height: 24),
               ],
@@ -83,7 +89,7 @@ class _PeerReviewListPageState extends State<PeerReviewListPage> {
                   prCtrl.canStudentSeePublicResults(activity))
                 _publicResults(summary),
               if (summary == null &&
-                  activity.peerVisibility == 'private' &&
+                  activity.privateReview &&
                   prCtrl.isCompleted(activityId))
                 _infoCard(
                     'Resultados en revisión por el profesor (visibilidad privada).'),
@@ -115,13 +121,15 @@ class _PeerReviewListPageState extends State<PeerReviewListPage> {
     );
   }
 
-  Widget _peerTile(String peerId, {required bool isDone}) {
+  Widget _peerTile(String peerId, {required bool isDone, bool isSelf = false}) {
     return Card(
       child: ListTile(
         leading:
             CircleAvatar(child: Text(peerId.substring(0, 2).toUpperCase())),
-        title: Text('Usuario $peerId'),
-        subtitle: Text(isDone ? 'Evaluado' : 'Pendiente'),
+        title: Text(isSelf ? 'Yo (DEBUG)' : 'Usuario $peerId'),
+        subtitle: Text(isDone
+            ? (isSelf ? 'Auto-evaluación enviada' : 'Evaluado')
+            : (isSelf ? 'Auto-evaluación pendiente' : 'Pendiente')),
         trailing: isDone
             ? const Icon(Icons.check, color: Colors.green)
             : const Icon(Icons.play_arrow),

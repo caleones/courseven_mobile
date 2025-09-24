@@ -13,7 +13,7 @@ class CourseActivityModel extends CourseActivity {
     required super.createdAt,
     super.isActive,
     super.reviewing,
-    super.peerVisibility,
+    super.privateReview,
   });
 
   factory CourseActivityModel.fromJson(Map<String, dynamic> json) {
@@ -42,7 +42,7 @@ class CourseActivityModel extends CourseActivity {
           : DateTime.now(),
       isActive: _parseBool(json['is_active'], defaultValue: true),
       reviewing: _parseBool(json['reviewing'], defaultValue: false),
-      peerVisibility: json['peer_visibility'] as String? ?? 'private',
+      privateReview: _parseBool(json['private_review'], defaultValue: true),
     );
   }
 
@@ -58,7 +58,7 @@ class CourseActivityModel extends CourseActivity {
       'created_at': createdAt.toIso8601String(),
       'is_active': isActive,
       'reviewing': reviewing,
-      'peer_visibility': peerVisibility,
+      'private_review': privateReview,
     };
   }
 
@@ -73,6 +73,6 @@ class CourseActivityModel extends CourseActivity {
         createdAt: createdAt,
         isActive: isActive,
         reviewing: reviewing,
-        peerVisibility: peerVisibility,
+        privateReview: super.privateReview,
       );
 }

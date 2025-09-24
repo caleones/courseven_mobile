@@ -136,10 +136,10 @@ class ActivityController extends GetxController {
   }
 
   /// Activa el peer review para una actividad (solo profesor y después del dueDate)
-  /// peerVisibility: 'public' o 'private'
+  /// isPrivate: true para private, false para public
   Future<CourseActivity?> requestPeerReview({
     required String activityId,
-    String peerVisibility = 'private',
+    bool isPrivate = true,
   }) async {
     try {
       isLoading.value = true;
@@ -168,15 +168,14 @@ class ActivityController extends GetxController {
       // Ya activo?
       if (activity!.reviewing) {
         // Permitir cambiar visibilidad private->public
-        if (activity!.peerVisibility == 'private' &&
-            peerVisibility == 'public') {
-          final updated = activity!.copyWith(peerVisibility: 'public');
+        if (activity!.privateReview && !isPrivate) {
+          final updated = activity!.copyWith(privateReview: false);
           return await updateActivity(updated);
         }
         return activity; // nada que hacer
       }
       final updated =
-          activity!.copyWith(reviewing: true, peerVisibility: peerVisibility);
+          activity!.copyWith(reviewing: true, privateReview: isPrivate);
       return await updateActivity(updated);
     } catch (e) {
       errorMessage.value = e.toString();
