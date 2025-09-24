@@ -66,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ),
-      bottomNavigationBar: const BottomNavigationDock(currentIndex: 3),
+      bottomNavigationBar: const BottomNavigationDock(currentIndex: 4),
     );
   }
 

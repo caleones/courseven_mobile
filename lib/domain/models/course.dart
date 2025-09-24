@@ -1,34 +1,24 @@
 /// Entidad de dominio para representar un curso en el sistema CourSEVEN
+/// Alineada con el esquema de la tabla `courses`:
+/// - _id, name, description, join_code, teacher_id, created_at, is_active
 class Course {
   final String id;
-  final String title;
+  final String name;
   final String description;
-  final String categoryId;
+  final String joinCode;
   final String teacherId;
-  final String? thumbnailUrl;
-  final String? videoUrl;
-  final int orderIndex;
   final DateTime createdAt;
   final bool isActive;
 
   const Course({
     required this.id,
-    required this.title,
+    required this.name,
     required this.description,
-    required this.categoryId,
+    required this.joinCode,
     required this.teacherId,
-    this.thumbnailUrl,
-    this.videoUrl,
-    required this.orderIndex,
     required this.createdAt,
     this.isActive = true,
   });
-
-  /// Curso tiene miniatura
-  bool get hasThumbnail => thumbnailUrl != null && thumbnailUrl!.isNotEmpty;
-
-  /// Curso tiene video
-  bool get hasVideo => videoUrl != null && videoUrl!.isNotEmpty;
 
   /// Curso está activo
   bool get isActiveCourse => isActive;
@@ -36,25 +26,19 @@ class Course {
   /// Crear copia del curso con cambios
   Course copyWith({
     String? id,
-    String? title,
+    String? name,
     String? description,
-    String? categoryId,
+    String? joinCode,
     String? teacherId,
-    String? thumbnailUrl,
-    String? videoUrl,
-    int? orderIndex,
     DateTime? createdAt,
     bool? isActive,
   }) {
     return Course(
       id: id ?? this.id,
-      title: title ?? this.title,
+      name: name ?? this.name,
       description: description ?? this.description,
-      categoryId: categoryId ?? this.categoryId,
+      joinCode: joinCode ?? this.joinCode,
       teacherId: teacherId ?? this.teacherId,
-      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
-      videoUrl: videoUrl ?? this.videoUrl,
-      orderIndex: orderIndex ?? this.orderIndex,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
     );
@@ -62,7 +46,7 @@ class Course {
 
   @override
   String toString() {
-    return 'Course(id: $id, title: $title, categoryId: $categoryId, teacherId: $teacherId)';
+    return 'Course(id: $id, name: $name, teacherId: $teacherId)';
   }
 
   @override
@@ -71,13 +55,10 @@ class Course {
 
     return other is Course &&
         other.id == id &&
-        other.title == title &&
+        other.name == name &&
         other.description == description &&
-        other.categoryId == categoryId &&
+        other.joinCode == joinCode &&
         other.teacherId == teacherId &&
-        other.thumbnailUrl == thumbnailUrl &&
-        other.videoUrl == videoUrl &&
-        other.orderIndex == orderIndex &&
         other.createdAt == createdAt &&
         other.isActive == isActive;
   }
@@ -85,13 +66,10 @@ class Course {
   @override
   int get hashCode {
     return id.hashCode ^
-        title.hashCode ^
+        name.hashCode ^
         description.hashCode ^
-        categoryId.hashCode ^
+        joinCode.hashCode ^
         teacherId.hashCode ^
-        thumbnailUrl.hashCode ^
-        videoUrl.hashCode ^
-        orderIndex.hashCode ^
         createdAt.hashCode ^
         isActive.hashCode;
   }

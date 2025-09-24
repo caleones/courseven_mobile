@@ -16,8 +16,10 @@ class MembershipModel extends Membership {
       id: json['_id'] as String,
       userId: json['user_id'] as String,
       groupId: json['group_id'] as String,
-      joinedAt: json['joined_at'] != null
-          ? DateTime.parse(json['joined_at'] as String)
+      // Nota: en la DB actual la columna está mal escrita como "joinet_at".
+      // Soportamos ambas llaves para compatibilidad hacia atrás/adelante.
+      joinedAt: (json['joined_at'] ?? json['joinet_at']) != null
+          ? DateTime.parse((json['joined_at'] ?? json['joinet_at']) as String)
           : DateTime.now(),
       isActive: json['is_active'] as bool? ?? true,
     );
@@ -25,11 +27,13 @@ class MembershipModel extends Membership {
 
   /// Convertir MembershipModel a JSON
   Map<String, dynamic> toJson() {
+    // Para inserciones, usamos únicamente la clave con el typo actual de la DB (joinet_at)
+    final when = joinedAt.toIso8601String();
     return {
       '_id': id,
       'user_id': userId,
       'group_id': groupId,
-      'joined_at': joinedAt.toIso8601String(),
+      'joinet_at': when, // compat con esquema actual
       'is_active': isActive,
     };
   }

@@ -15,13 +15,19 @@ abstract class CourseRepository {
   Future<Course> createCourse(Course course);
 
   /// Actualizar curso existente
-  Future<Course> updateCourse(Course course);
+  Future<Course> updateCourse(Course course, {bool partial = true});
+
+  /// Activar o desactivar (soft delete) un curso
+  Future<Course> setCourseActive(String courseId, bool active);
 
   /// Eliminar curso (soft delete)
   Future<bool> deleteCourse(String courseId);
 
   /// Buscar cursos por título
   Future<List<Course>> searchCoursesByTitle(String title);
+
+  /// Obtener curso por código de ingreso (join_code)
+  Future<Course?> getCourseByJoinCode(String joinCode);
 
   /// Obtener cursos activos
   Future<List<Course>> getActiveCourses();

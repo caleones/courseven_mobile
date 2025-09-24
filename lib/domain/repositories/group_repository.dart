@@ -11,6 +11,12 @@ abstract class GroupRepository {
   /// Crear nuevo grupo
   Future<Group> createGroup(Group group);
 
+  /// Obtener grupos por categoría
+  Future<List<Group>> getGroupsByCategory(String categoryId);
+
+  /// Obtener grupos por profesor
+  Future<List<Group>> getGroupsByTeacher(String teacherId);
+
   /// Actualizar grupo existente
   Future<Group> updateGroup(Group group);
 

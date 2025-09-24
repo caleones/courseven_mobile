@@ -11,6 +11,12 @@ abstract class CategoryRepository {
   /// Crear nueva categoría
   Future<Category> createCategory(Category category);
 
+  /// Obtener categorías de un curso
+  Future<List<Category>> getCategoriesByCourse(String courseId);
+
+  /// Obtener categorías del profesor
+  Future<List<Category>> getCategoriesByTeacher(String teacherId);
+
   /// Actualizar categoría existente
   Future<Category> updateCategory(Category category);
 

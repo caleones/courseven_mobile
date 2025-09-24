@@ -8,15 +8,26 @@ class AppTheme {
   static const Color premiumBlack = Color(0xFF0D0D0D);
   static const Color premiumWhite = Color(0xFFFAFAFA);
   static const Color softGrey = Color(0xFFF5F5F5);
-  static const Color darkGrey = Color(0xFF1A1A1A);
+  static const Color darkGrey = Color(0xFF242424);
   static const Color mediumGrey = Color(0xFF757575);
+  // Success accent (placeholder until full token design)
+  static const Color successGreen = Color(0xFF2E7D32); // Material Green 800
+  // Danger accent for inactive states
+  static const Color dangerRed = Color(0xFFD32F2F); // Material Red 700
 
   // Light theme - White base with gold accents
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: premiumWhite,
+      scaffoldBackgroundColor: Colors.transparent,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: premiumWhite.withOpacity(0.9),
+        selectedItemColor: goldAccent,
+        unselectedItemColor: premiumBlack.withOpacity(0.6),
+        elevation: 8,
+        type: BottomNavigationBarType.fixed,
+      ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: goldAccent,
@@ -47,9 +58,9 @@ class AppTheme {
         error: const Color(0xFFB00020),
       ),
       appBarTheme: AppBarTheme(
-        elevation: 0,
+        elevation: 1,
         centerTitle: true,
-        backgroundColor: premiumWhite,
+        backgroundColor: premiumWhite.withOpacity(0.9),
         foregroundColor: premiumBlack,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: const TextStyle(
@@ -97,8 +108,8 @@ class AppTheme {
         hintStyle: TextStyle(color: mediumGrey.withOpacity(0.7)),
       ),
       cardTheme: CardThemeData(
-        elevation: 4,
-        shadowColor: premiumBlack.withOpacity(0.1),
+        elevation: 6,
+        shadowColor: premiumBlack.withOpacity(0.12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -112,7 +123,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: premiumBlack,
+      scaffoldBackgroundColor: Colors.transparent,
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: goldAccent,

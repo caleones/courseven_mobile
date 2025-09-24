@@ -18,10 +18,13 @@ class StarryBackground extends StatelessWidget {
       return Star(
         x: random.nextDouble(),
         y: random.nextDouble(),
-        size: 0.5 + random.nextDouble() * 2.0,
-        opacity: 0.4 + random.nextDouble() * 0.6,
-        brightness:
-            random.nextDouble() > 0.7 ? 1.0 : 0.0, // 30% estrellas brillantes
+        size: 0.4 + random.nextDouble() * 1.6,
+        // Opacidad más baja para oscurecer el cielo nocturno
+        opacity: 0.2 + random.nextDouble() * 0.35,
+        // Menos estrellas brillantes para un look más sobrio
+        brightness: random.nextDouble() > 0.88
+            ? 1.0
+            : 0.0, // ~12% estrellas con brillo cruzado
       );
     });
   }
@@ -29,13 +32,13 @@ class StarryBackground extends StatelessWidget {
   // Generar nubes estáticas
   List<Cloud> _generateClouds() {
     final random = Random(123); // Seed fijo para consistencia
-    return List.generate(8, (index) {
+    return List.generate(5, (index) {
       return Cloud(
         x: random.nextDouble(),
-        y: 0.1 + random.nextDouble() * 0.4, // Solo en la parte superior
-        width: 0.15 + random.nextDouble() * 0.25,
-        height: 0.08 + random.nextDouble() * 0.12,
-        opacity: 0.15 + random.nextDouble() * 0.25,
+        y: 0.05 + random.nextDouble() * 0.30, // Más hacia la parte superior
+        width: 0.10 + random.nextDouble() * 0.18,
+        height: 0.06 + random.nextDouble() * 0.10,
+        opacity: 0.06 + random.nextDouble() * 0.08, // Mucho más sutiles
       );
     });
   }
@@ -56,25 +59,45 @@ class StarryBackground extends StatelessWidget {
                 ? const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
+                    // Más stops para transiciones más suaves y sin banding
                     colors: [
-                      Color(0xFF0B1426), // Azul nocturno profundo
-                      Color(0xFF1A2332), // Azul nocturno medio
-                      Color(0xFF0D0D0D), // Negro premium
+                      Color(0xFF02060D),
+                      Color(0xFF050A14),
+                      Color(0xFF0A1324),
+                      Color(0xFF060A12),
+                      Color(0xFF000000),
                     ],
-                    stops: [0.0, 0.7, 1.0],
+                    stops: [0.0, 0.35, 0.7, 0.85, 1.0],
                   )
                 : const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
+                    // Cielo más suave para mejor legibilidad en modo claro
                     colors: [
-                      Color(0xFF87CEEB), // Azul cielo
-                      Color(0xFFB0E0E6), // Azul cielo más claro
-                      Color(0xFFFAFAFA), // Blanco premium
+                      Color(0xFF78B7D8),
+                      Color(0xFFAED4E2),
+                      Color(0xFFF7F7F7),
                     ],
-                    stops: [0.0, 0.6, 1.0],
+                    stops: [0.0, 0.7, 1.0],
                   ),
           ),
         ),
+
+        // Vignette sutil para ocultar artefactos en bordes (solo nocturno)
+        if (isDarkMode)
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.2),
+                radius: 1.0,
+                colors: [
+                  Colors.transparent,
+                  Color(0xAA000000),
+                ],
+                stops: [0.6, 1.0],
+              ),
+            ),
+          ),
 
         // Elementos decorativos estáticos
         if (isDarkMode)
@@ -88,6 +111,23 @@ class StarryBackground extends StatelessWidget {
           CustomPaint(
             painter: StaticCloudsPainter(clouds: clouds),
             size: Size.infinite,
+          ),
+
+        // Scrim sutil en modo claro para aumentar contraste del contenido
+        if (!isDarkMode)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Color(0x0A000000), // ~4% negro en el centro
+                  Colors.transparent,
+                ],
+                stops: const [0.15, 0.55, 0.95],
+              ),
+            ),
           ),
 
         // Contenido principal
@@ -154,22 +194,22 @@ class StaticStarsPainter extends CustomPainter {
         paint,
       );
 
-      // Agregar brillo cruzado para estrellas brillantes
+      // Agregar brillo cruzado para estrellas brillantes (más sutil)
       if (star.brightness > 0.5) {
-        paint.strokeWidth = 0.8;
-        paint.color = Color(0xFFFFD700).withOpacity(star.opacity * 0.7);
+        paint.strokeWidth = 0.5;
+        paint.color = const Color(0xFFFFD700).withOpacity(star.opacity * 0.5);
 
         // Línea vertical
         canvas.drawLine(
-          Offset(x, y - star.size * 2.5),
-          Offset(x, y + star.size * 2.5),
+          Offset(x, y - star.size * 1.8),
+          Offset(x, y + star.size * 1.8),
           paint,
         );
 
         // Línea horizontal
         canvas.drawLine(
-          Offset(x - star.size * 2.5, y),
-          Offset(x + star.size * 2.5, y),
+          Offset(x - star.size * 1.8, y),
+          Offset(x + star.size * 1.8, y),
           paint,
         );
       }

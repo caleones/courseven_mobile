@@ -14,7 +14,7 @@ class EnrollmentModel extends Enrollment {
   factory EnrollmentModel.fromJson(Map<String, dynamic> json) {
     return EnrollmentModel(
       id: json['_id'] as String,
-      studentId: json['student_id'] as String,
+      studentId: (json['user_id'] ?? json['student_id']) as String,
       courseId: json['course_id'] as String,
       enrolledAt: json['enrolled_at'] != null
           ? DateTime.parse(json['enrolled_at'] as String)
@@ -27,7 +27,8 @@ class EnrollmentModel extends Enrollment {
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
-      'student_id': studentId,
+      // DB usa user_id; mantenemos compatibilidad si alguna migración previa usó student_id
+      'user_id': studentId,
       'course_id': courseId,
       'enrolled_at': enrolledAt.toIso8601String(),
       'is_active': isActive,

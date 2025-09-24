@@ -4,13 +4,10 @@ import '../../domain/models/course.dart';
 class CourseModel extends Course {
   const CourseModel({
     required super.id,
-    required super.title,
+    required super.name,
     required super.description,
-    required super.categoryId,
+    required super.joinCode,
     required super.teacherId,
-    super.thumbnailUrl,
-    super.videoUrl,
-    required super.orderIndex,
     required super.createdAt,
     super.isActive,
   });
@@ -19,13 +16,10 @@ class CourseModel extends Course {
   factory CourseModel.fromJson(Map<String, dynamic> json) {
     return CourseModel(
       id: json['_id'] as String,
-      title: json['title'] as String,
+      name: json['name'] as String,
       description: json['description'] as String,
-      categoryId: json['category_id'] as String,
+      joinCode: (json['join_code'] as String?) ?? '',
       teacherId: json['teacher_id'] as String,
-      thumbnailUrl: json['thumbnail_url'] as String?,
-      videoUrl: json['video_url'] as String?,
-      orderIndex: json['order_index'] as int,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
@@ -37,13 +31,10 @@ class CourseModel extends Course {
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
-      'title': title,
+      'name': name,
       'description': description,
-      'category_id': categoryId,
+      'join_code': joinCode,
       'teacher_id': teacherId,
-      'thumbnail_url': thumbnailUrl,
-      'video_url': videoUrl,
-      'order_index': orderIndex,
       'created_at': createdAt.toIso8601String(),
       'is_active': isActive,
     };
@@ -52,25 +43,19 @@ class CourseModel extends Course {
   /// Crear copia con cambios
   CourseModel copyWith({
     String? id,
-    String? title,
+    String? name,
     String? description,
-    String? categoryId,
+    String? joinCode,
     String? teacherId,
-    String? thumbnailUrl,
-    String? videoUrl,
-    int? orderIndex,
     DateTime? createdAt,
     bool? isActive,
   }) {
     return CourseModel(
       id: id ?? this.id,
-      title: title ?? this.title,
+      name: name ?? this.name,
       description: description ?? this.description,
-      categoryId: categoryId ?? this.categoryId,
+      joinCode: joinCode ?? this.joinCode,
       teacherId: teacherId ?? this.teacherId,
-      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
-      videoUrl: videoUrl ?? this.videoUrl,
-      orderIndex: orderIndex ?? this.orderIndex,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
     );
@@ -80,13 +65,10 @@ class CourseModel extends Course {
   Course toEntity() {
     return Course(
       id: id,
-      title: title,
+      name: name,
       description: description,
-      categoryId: categoryId,
+      joinCode: joinCode,
       teacherId: teacherId,
-      thumbnailUrl: thumbnailUrl,
-      videoUrl: videoUrl,
-      orderIndex: orderIndex,
       createdAt: createdAt,
       isActive: isActive,
     );

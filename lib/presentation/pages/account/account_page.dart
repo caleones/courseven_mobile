@@ -54,7 +54,7 @@ class _AccountPageState extends State<AccountPage> {
           ),
         ),
       ),
-      bottomNavigationBar: const BottomNavigationDock(currentIndex: 2),
+      bottomNavigationBar: const BottomNavigationDock(currentIndex: 3),
     );
   }
 
@@ -64,19 +64,20 @@ class _AccountPageState extends State<AccountPage> {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.goldAccent.withOpacity(0.1),
-              AppTheme.lightGold.withOpacity(0.05),
-            ],
-          ),
+          // Superficie sólida en ambos temas
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: AppTheme.goldAccent.withOpacity(0.2),
             width: 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Theme.of(context).shadowColor.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -484,12 +485,19 @@ class _AccountPageState extends State<AccountPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.05),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.red.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).shadowColor.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: () {

@@ -5,7 +5,6 @@ import '../../controllers/theme_controller.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/theme_toggle_widget.dart';
-import '../../widgets/common/starry_background.dart';
 import '../../widgets/common/password_requirements.dart';
 import '../../../core/config/app_routes.dart';
 import 'password_reset/forgot_password_page.dart';
@@ -200,43 +199,36 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GetBuilder<ThemeController>(
-        builder: (themeController) {
-          return StarryBackground(
-            isDarkMode: themeController.isDarkMode,
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    // Header con toggle de tema
-                    _buildHeader(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            children: [
+              // Header con toggle de tema
+              _buildHeader(),
 
-                    const SizedBox(height: 40),
+              const SizedBox(height: 40),
 
-                    // Logo y título
-                    _buildLogo(),
+              // Logo y título
+              _buildLogo(),
 
-                    const SizedBox(height: 40),
+              const SizedBox(height: 40),
 
-                    // Formulario
-                    _buildForm(),
+              // Formulario
+              _buildForm(),
 
-                    const SizedBox(height: 30),
+              const SizedBox(height: 30),
 
-                    // Botones de acción
-                    _buildActionButtons(),
+              // Botones de acción
+              _buildActionButtons(),
 
-                    const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-                    // Opciones adicionales
-                    _buildAdditionalOptions(),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+              // Opciones adicionales
+              _buildAdditionalOptions(),
+            ],
+          ),
+        ),
       ),
     );
   }

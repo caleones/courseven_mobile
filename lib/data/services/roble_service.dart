@@ -51,7 +51,30 @@ class RobleService {
   }
 
   String get _baseDatabaseUrl {
-    _cachedDbUrl ??= _env('ROBLE_DB_BASE_URL') ?? _fallbackDbUrl;
+    if (_cachedDbUrl == null) {
+      // Prefer env var but fall back to default
+      var raw = _env('ROBLE_DB_BASE_URL') ?? _fallbackDbUrl;
+      var normalized = raw.trim();
+      // Remove trailing slashes
+      while (normalized.endsWith('/')) {
+        normalized = normalized.substring(0, normalized.length - 1);
+      }
+      // Ensure the base URL points to the /database endpoint exactly
+      // Common misconfig: env contains host without '/database' which would cause
+      // requests like '/<dbName>/update' (404). We fix it here.
+      const seg = '/database';
+      if (!normalized.endsWith(seg)) {
+        final idx = normalized.indexOf(seg);
+        if (idx >= 0) {
+          // Trim to include only up to '/database'
+          normalized = normalized.substring(0, idx + seg.length);
+        } else {
+          normalized = '$normalized$seg';
+        }
+      }
+      _cachedDbUrl = normalized;
+      debugPrint('[ROBLE] DB base URL normalized to: $_cachedDbUrl');
+    }
     return _cachedDbUrl!;
   }
 
@@ -395,6 +418,653 @@ class RobleService {
     } catch (e) {
       print('Health check error: $e');
       return false;
+    }
+  }
+
+  // ========== CURSOS (Database) ==========
+
+  Uri _dbReadUri(String table, [Map<String, String>? query]) {
+    final params = {'tableName': table, ...?query};
+    return Uri.parse('$_baseDatabaseUrl/$_dbName/read')
+        .replace(queryParameters: params);
+  }
+
+  /// Lee cursos por ID de profesor (teacher_id)
+  Future<List<Map<String, dynamic>>> readCoursesByTeacher({
+    required String accessToken,
+    required String teacherId,
+    int? limit,
+  }) async {
+    try {
+      final qp = {
+        'teacher_id': teacherId,
+        if (limit != null) '_limit': '$limit',
+      };
+      final uri = _dbReadUri('courses', qp);
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) {
+          return data.cast<Map<String, dynamic>>();
+        }
+        return const [];
+      }
+      throw Exception('DB read courses failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[COURSES] Error leyendo cursos por teacher: $e');
+      rethrow;
+    }
+  }
+
+  /// Inserta un curso en la tabla courses
+  Future<Map<String, dynamic>> insertCourse({
+    required String accessToken,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode({
+          'tableName': 'courses',
+          'records': [record],
+        }),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB insert course failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[COURSES] Error insertando curso: $e');
+      rethrow;
+    }
+  }
+
+  /// Actualiza un curso (por _id)
+  Future<Map<String, dynamic>> updateCourse({
+    required String accessToken,
+    required String id,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      final baseUrl = _baseDatabaseUrl; // triggers normalization + log
+      final primaryUrl = '$baseUrl/$_dbName/update';
+      final payload = {
+        'tableName': 'courses',
+        'idColumn': '_id',
+        'idValue': id,
+        'updates': updates,
+      };
+      // Verbose logging for diagnostics
+      debugPrint('[COURSES][UPDATE] ====== BEGIN REQUEST ======');
+      debugPrint('[COURSES][UPDATE] DB Base URL: $baseUrl');
+      debugPrint('[COURSES][UPDATE] DB Name    : $_dbName');
+      debugPrint('[COURSES][UPDATE] Target URL : $primaryUrl');
+      debugPrint('[COURSES][UPDATE] Payload    : ${jsonEncode(payload)}');
+      debugPrint(
+          '[COURSES][UPDATE] AccessTok? : ${accessToken.isNotEmpty} length=${accessToken.length}');
+      final startedAt = DateTime.now();
+      final resp = await http.put(
+        Uri.parse(primaryUrl),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode(payload),
+      );
+      final elapsed = DateTime.now().difference(startedAt).inMilliseconds;
+      debugPrint(
+          '[COURSES][UPDATE] Status      : ${resp.statusCode} (${elapsed}ms)');
+      if (resp.body.isNotEmpty) {
+        final prev = resp.body.length > 400
+            ? resp.body.substring(0, 400) + '...'
+            : resp.body;
+        debugPrint('[COURSES][UPDATE] Body preview: $prev');
+      } else {
+        debugPrint('[COURSES][UPDATE] Empty body response');
+      }
+
+      // Success path
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        debugPrint('[COURSES][UPDATE] SUCCESS primary endpoint');
+        final data = jsonDecode(resp.body);
+        debugPrint('[COURSES][UPDATE] Parsed type: ${data.runtimeType}');
+        debugPrint('[COURSES][UPDATE] ====== END REQUEST (SUCCESS) ======');
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+
+      // If 404, attempt a fallback assumption: maybe env already included '/database' and we added again? (defensive)
+      if (resp.statusCode == 404) {
+        // Derive an alternate base by stripping a trailing '/database'
+        String altBase = baseUrl.endsWith('/database')
+            ? baseUrl.substring(0, baseUrl.length - '/database'.length)
+            : baseUrl;
+        // Also try without re-appending '/database'
+        final altUrl = '$altBase/$_dbName/update';
+        if (altUrl != primaryUrl) {
+          debugPrint(
+              '[COURSES][UPDATE] 404 detected. Trying fallback URL: $altUrl');
+          final resp2 = await http.put(
+            Uri.parse(altUrl),
+            headers: _authHeaders(accessToken),
+            body: jsonEncode(payload),
+          );
+          debugPrint('[COURSES][UPDATE] Fallback status: ${resp2.statusCode}');
+          if (resp2.body.isNotEmpty) {
+            final prev2 = resp2.body.length > 400
+                ? resp2.body.substring(0, 400) + '...'
+                : resp2.body;
+            debugPrint('[COURSES][UPDATE] Fallback body preview: $prev2');
+          }
+          if (resp2.statusCode == 200 || resp2.statusCode == 201) {
+            debugPrint('[COURSES][UPDATE] SUCCESS fallback endpoint');
+            final data = jsonDecode(resp2.body);
+            debugPrint(
+                '[COURSES][UPDATE] ====== END REQUEST (SUCCESS-FALLBACK) ======');
+            return data is Map<String, dynamic> ? data : {'data': data};
+          }
+        } else {
+          debugPrint(
+              '[COURSES][UPDATE] Fallback URL identical; skipping retry');
+        }
+      }
+
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      debugPrint('[COURSES][UPDATE] FAILURE: ${resp.statusCode} $err');
+      debugPrint('[COURSES][UPDATE] ====== END REQUEST (FAILURE) ======');
+      throw Exception('DB update course failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[COURSES] Error actualizando curso: $e');
+      rethrow;
+    }
+  }
+
+  /// Lee cursos con consulta arbitraria (por id, categoría, etc.)
+  Future<List<Map<String, dynamic>>> readCourses({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('courses', query);
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read courses failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[COURSES] Error leyendo cursos: $e');
+      rethrow;
+    }
+  }
+
+  /// Busca cursos por join_code exacto
+  Future<List<Map<String, dynamic>>> readCoursesByJoinCode({
+    required String accessToken,
+    required String joinCode,
+  }) async {
+    return readCourses(
+        accessToken: accessToken, query: {'join_code': joinCode});
+  }
+
+  // ========== CATEGORÍAS (Database) ==========
+
+  /// Lee categorías con filtros
+  Future<List<Map<String, dynamic>>> readCategories({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('categories', query);
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read categories failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[CATEGORIES] Error leyendo categorías: $e');
+      rethrow;
+    }
+  }
+
+  /// Inserta una categoría en la tabla categories
+  Future<Map<String, dynamic>> insertCategory({
+    required String accessToken,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode({
+          'tableName': 'categories',
+          'records': [record],
+        }),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB insert category failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[CATEGORIES] Error insertando categoría: $e');
+      rethrow;
+    }
+  }
+
+  /// Actualiza una categoría (por _id)
+  Future<Map<String, dynamic>> updateCategory({
+    required String accessToken,
+    required String id,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final payload = {
+        'tableName': 'categories',
+        'filter': {'_id': id},
+        'updates': updates,
+      };
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode(payload),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB update category failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[CATEGORIES] Error actualizando categoría: $e');
+      rethrow;
+    }
+  }
+
+  // ========== GRUPOS (Database) ==========
+
+  /// Lee grupos con filtros
+  Future<List<Map<String, dynamic>>> readGroups({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('groups', query);
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read groups failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[GROUPS] Error leyendo grupos: $e');
+      rethrow;
+    }
+  }
+
+  /// Inserta un grupo en la tabla groups
+  Future<Map<String, dynamic>> insertGroup({
+    required String accessToken,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode({
+          'tableName': 'groups',
+          'records': [record],
+        }),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB insert group failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[GROUPS] Error insertando grupo: $e');
+      rethrow;
+    }
+  }
+
+  /// Actualiza un grupo (por _id)
+  Future<Map<String, dynamic>> updateGroup({
+    required String accessToken,
+    required String id,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final payload = {
+        'tableName': 'groups',
+        'filter': {'_id': id},
+        'updates': updates,
+      };
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode(payload),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB update group failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[GROUPS] Error actualizando grupo: $e');
+      rethrow;
+    }
+  }
+
+  // ========== ENROLLMENTS (Database) ==========
+
+  /// Lee inscripciones con filtros
+  Future<List<Map<String, dynamic>>> readEnrollments({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('enrollments', query);
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      } else if (resp.statusCode == 401) {
+        throw Exception('Token de acceso expirado o inválido (401)');
+      } else if (resp.statusCode == 403) {
+        throw Exception('Acceso denegado para leer inscripciones (403)');
+      }
+      throw Exception('DB read enrollments failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[ENROLLMENTS] Error leyendo inscripciones: $e');
+      rethrow;
+    }
+  }
+
+  // ========== ACTIVITIES (Database) ==========
+
+  /// Lee actividades con filtros (por course_id, category_id, etc.)
+  Future<List<Map<String, dynamic>>> readActivities({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('activities', query);
+      debugPrint('[ACTIVITIES][READ] GET $uri');
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      debugPrint('[ACTIVITIES][READ] Status: ${resp.statusCode}');
+      if (kDebugMode) {
+        final body = resp.body;
+        final preview =
+            body.length > 400 ? body.substring(0, 400) + '...' : body;
+        debugPrint('[ACTIVITIES][READ] Body: $preview');
+      }
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read activities failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[ACTIVITIES] Error leyendo actividades: $e');
+      rethrow;
+    }
+  }
+
+  /// Inserta una actividad en la tabla activities
+  Future<Map<String, dynamic>> insertActivity({
+    required String accessToken,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final payload = {
+        'tableName': 'activities',
+        'records': [record],
+      };
+      debugPrint('[ACTIVITIES][INSERT] POST $url');
+      if (kDebugMode)
+        debugPrint('[ACTIVITIES][INSERT] Payload: ${jsonEncode(payload)}');
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode(payload),
+      );
+      debugPrint('[ACTIVITIES][INSERT] Status: ${resp.statusCode}');
+      if (kDebugMode) {
+        final body = resp.body;
+        final preview =
+            body.length > 600 ? body.substring(0, 600) + '...' : body;
+        debugPrint('[ACTIVITIES][INSERT] Body: $preview');
+      }
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB insert activity failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[ACTIVITIES] Error insertando actividad: $e');
+      rethrow;
+    }
+  }
+
+  /// Actualiza una actividad (por _id)
+  Future<Map<String, dynamic>> updateActivity({
+    required String accessToken,
+    required String id,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final payload = {
+        'tableName': 'activities',
+        'filter': {'_id': id},
+        'updates': updates,
+      };
+      debugPrint('[ACTIVITIES][UPDATE] POST $url');
+      if (kDebugMode) {
+        debugPrint('[ACTIVITIES][UPDATE] Payload: ${jsonEncode(payload)}');
+      }
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode(payload),
+      );
+      debugPrint('[ACTIVITIES][UPDATE] Status: ${resp.statusCode}');
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB update activity failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[ACTIVITIES] Error actualizando actividad: $e');
+      rethrow;
+    }
+  }
+
+  // ========== MEMBERSHIPS (Database) ==========
+
+  /// Lee membresías con filtros
+  Future<List<Map<String, dynamic>>> readMemberships({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('memberships', query);
+      debugPrint('[MEMBERSHIPS][READ] GET $uri');
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      debugPrint('[MEMBERSHIPS][READ] Status: ${resp.statusCode}');
+      if (kDebugMode) {
+        final body = resp.body;
+        final preview =
+            body.length > 400 ? body.substring(0, 400) + '...' : body;
+        debugPrint('[MEMBERSHIPS][READ] Body: $preview');
+      }
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read memberships failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[MEMBERSHIPS] Error leyendo membresías: $e');
+      rethrow;
+    }
+  }
+
+  // ========== GENERIC TABLE HELPERS (lightweight) ==========
+  /// Generic read for arbitrary table using simple equality filters.
+  Future<List<Map<String, dynamic>>> readTable({
+    required String accessToken,
+    required String table,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri(table, query);
+      debugPrint('[GENERIC][READ][$table] GET $uri');
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read $table failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[GENERIC][READ][$table] Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Generic insert (multiple records) returning raw backend response.
+  Future<Map<String, dynamic>> insertTable({
+    required String accessToken,
+    required String table,
+    required List<Map<String, dynamic>> records,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final payload = {'tableName': table, 'records': records};
+      debugPrint('[GENERIC][INSERT][$table] POST $url');
+      final resp = await http.post(Uri.parse(url),
+          headers: _authHeaders(accessToken), body: jsonEncode(payload));
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      throw Exception('DB insert $table failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[GENERIC][INSERT][$table] Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Generic update (filter by _id single) for arbitrary table.
+  Future<Map<String, dynamic>> updateRow({
+    required String accessToken,
+    required String table,
+    required String id,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final payload = {
+        'tableName': table,
+        'filter': {'_id': id},
+        'updates': updates,
+      };
+      debugPrint('[GENERIC][UPDATE][$table] POST $url');
+      if (kDebugMode)
+        debugPrint('[GENERIC][UPDATE][$table] Payload: ' + jsonEncode(payload));
+      final resp = await http.post(Uri.parse(url),
+          headers: _authHeaders(accessToken), body: jsonEncode(payload));
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB update $table failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[GENERIC][UPDATE][$table] Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Inserta una membresía en la tabla memberships
+  Future<Map<String, dynamic>> insertMembership({
+    required String accessToken,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final payload = {
+        'tableName': 'memberships',
+        'records': [record],
+      };
+      debugPrint('[MEMBERSHIPS][INSERT] POST $url');
+      if (kDebugMode) {
+        debugPrint('[MEMBERSHIPS][INSERT] Payload: ${jsonEncode(payload)}');
+      }
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode(payload),
+      );
+      debugPrint('[MEMBERSHIPS][INSERT] Status: ${resp.statusCode}');
+      if (kDebugMode) {
+        final body = resp.body;
+        final preview =
+            body.length > 600 ? body.substring(0, 600) + '...' : body;
+        debugPrint('[MEMBERSHIPS][INSERT] Body: $preview');
+      }
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB insert membership failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[MEMBERSHIPS] Error insertando membresía: $e');
+      rethrow;
+    }
+  }
+
+  /// Inserta una inscripción en la tabla enrollments
+  Future<Map<String, dynamic>> insertEnrollment({
+    required String accessToken,
+    required Map<String, dynamic> record,
+  }) async {
+    try {
+      final url = '$_baseDatabaseUrl/$_dbName/insert';
+      final resp = await http.post(
+        Uri.parse(url),
+        headers: _authHeaders(accessToken),
+        body: jsonEncode({
+          'tableName': 'enrollments',
+          'records': [record],
+        }),
+      );
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        final data = jsonDecode(resp.body);
+        return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
+      throw Exception('DB insert enrollment failed: ${resp.statusCode} $err');
+    } catch (e) {
+      debugPrint('[ENROLLMENTS] Error insertando inscripción: $e');
+      rethrow;
     }
   }
 
@@ -936,6 +1606,27 @@ class RobleService {
   }
 
   // Busca un usuario en la tabla users por email
+  /// Lee usuarios con filtros arbitrarios (por _id, email, username, etc.)
+  Future<List<Map<String, dynamic>>> readUsers({
+    required String accessToken,
+    Map<String, String>? query,
+  }) async {
+    try {
+      final uri = _dbReadUri('users', query);
+      final resp = await http.get(uri, headers: _authHeaders(accessToken));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        if (data is List) return data.cast<Map<String, dynamic>>();
+        return const [];
+      }
+      throw Exception('DB read users failed: ${resp.statusCode}');
+    } catch (e) {
+      debugPrint('[USERS] Error leyendo usuarios: $e');
+      rethrow;
+    }
+  }
+
+  // Busca un usuario en la tabla users por email
   Future<Map<String, dynamic>?> getUserFromDatabase({
     required String accessToken,
     required String email,
@@ -976,6 +1667,41 @@ class RobleService {
       return null;
     } catch (e) {
       debugPrint('[DB_USER] Error buscando usuario en database: $e');
+      return null;
+    }
+  }
+
+  // Renueva el access token usando el refresh token
+  Future<Map<String, dynamic>?> refreshAccessToken(String refreshToken) async {
+    try {
+      debugPrint('[ROBLE] Renovando access token...');
+
+      final response = await http.post(
+        Uri.parse('$_baseAuthUrl/refresh-token'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'refreshToken': refreshToken,
+        }),
+      );
+
+      debugPrint('[ROBLE] Refresh token response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        debugPrint('[ROBLE] Token renovado exitosamente');
+        return {
+          'accessToken': data['accessToken'],
+          'refreshToken': data['refreshToken'], // nuevo refresh token
+        };
+      } else {
+        debugPrint(
+            '[ROBLE] Error renovando token: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('[ROBLE] Excepción renovando token: $e');
       return null;
     }
   }

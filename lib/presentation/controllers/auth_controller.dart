@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../data/services/roble_service.dart';
 import '../../domain/models/user.dart';
+import '../../core/config/app_routes.dart';
+import '../pages/auth/login_page.dart';
 
 class AuthController extends GetxController {
   final RobleService _authService;
@@ -17,6 +20,9 @@ class AuthController extends GetxController {
   final _currentUser = Rxn<User>();
   final _errorMessage = ''.obs;
   final _selectedDatabase = 'uninorte'.obs; // por defecto uso uninorte
+
+  // Timer para renovación automática de tokens
+  Timer? _tokenRefreshTimer;
 
   // estos getters me facilitan acceder a los valores sin .value
   bool get isLoggedIn => _isLoggedIn.value;
@@ -87,17 +93,23 @@ class AuthController extends GetxController {
                 );
                 _currentUser.value = user;
                 _isLoggedIn.value = true;
+
+                // Iniciar timer de renovación automática
+                _startTokenRefreshTimer();
+
                 debugPrint(
                     '[AUTH_CONTROLLER] Sesión restaurada exitosamente desde DB');
               } else {
                 debugPrint(
                     '[AUTH_CONTROLLER] Token válido pero no se encontró usuario en DB');
                 _isLoggedIn.value = true;
+                _startTokenRefreshTimer();
               }
             } else {
               debugPrint(
                   '[AUTH_CONTROLLER] No hay user_email almacenado. Marcando sesión como válida');
               _isLoggedIn.value = true;
+              _startTokenRefreshTimer();
             }
           } else {
             debugPrint('[AUTH_CONTROLLER] Token inválido, limpiando sesión');
@@ -212,6 +224,9 @@ class AuthController extends GetxController {
 
         _currentUser.value = user;
         _isLoggedIn.value = true;
+
+        // Iniciar timer de renovación automática
+        _startTokenRefreshTimer();
 
         print('AuthController: Guardando tokens en storage...');
 
@@ -500,6 +515,9 @@ class AuthController extends GetxController {
               _currentUser.value = user;
               _isLoggedIn.value = true;
 
+              // Iniciar timer de renovación automática
+              _startTokenRefreshTimer();
+
               // guardo los tokens del login final (no los temporales del auth)
               final finalAccessToken = finalLoginResponse['accessToken'];
               final finalRefreshToken = finalLoginResponse['refreshToken'];
@@ -691,8 +709,20 @@ class AuthController extends GetxController {
     } finally {
       // Limpias todo local sin importar si el server respondió
       await _clearStoredSession();
+
+      // Detener timer de renovación automática
+      _stopTokenRefreshTimer();
+
       _setLoading(false);
       update();
+
+      // Navego de inmediato al login
+      try {
+        Get.offAllNamed(AppRoutes.login);
+      } catch (_) {
+        // fallback por si no están registradas las rutas con nombre
+        Get.offAll(() => const LoginPage());
+      }
 
       Get.snackbar(
         'Sesión cerrada',
@@ -726,6 +756,94 @@ class AuthController extends GetxController {
   // limpio mensajes de error
   void clearError() {
     _errorMessage.value = '';
+  }
+
+  // Provee el access token almacenado (para capas inferiores que lo requieran)
+  Future<String?> getAccessToken() async {
+    try {
+      return await _secureStorage.read(key: _accessTokenKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Renueva el access token usando el refresh token almacenado
+  Future<bool> refreshAccessToken() async {
+    try {
+      final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
+      if (refreshToken == null) {
+        debugPrint('[AUTH] No hay refresh token almacenado');
+        return false;
+      }
+
+      final result = await _authService.refreshAccessToken(refreshToken);
+      if (result != null) {
+        // Guarda el nuevo access token
+        await _secureStorage.write(
+            key: _accessTokenKey, value: result['accessToken']);
+
+        // Guarda el nuevo refresh token si viene uno
+        if (result['refreshToken'] != null) {
+          await _secureStorage.write(
+              key: _refreshTokenKey, value: result['refreshToken']);
+        }
+
+        debugPrint('[AUTH] Access token renovado exitosamente');
+        return true;
+      } else {
+        debugPrint('[AUTH] Error renovando access token');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[AUTH] Excepción renovando access token: $e');
+      return false;
+    }
+  }
+
+  // Intenta manejar un error 401 renovando el token automáticamente
+  Future<bool> handle401Error() async {
+    debugPrint('[AUTH] Manejando error 401, intentando renovar token...');
+    final success = await refreshAccessToken();
+
+    if (!success) {
+      // Si no se puede renovar el token, cerrar sesión
+      debugPrint('[AUTH] No se pudo renovar el token, cerrando sesión');
+      await logout();
+    }
+
+    return success;
+  }
+
+  // Inicia el timer automático para renovar el token cada 12 minutos
+  void _startTokenRefreshTimer() {
+    _stopTokenRefreshTimer(); // Asegurar que no haya timers duplicados
+
+    _tokenRefreshTimer =
+        Timer.periodic(const Duration(minutes: 12), (timer) async {
+      if (isLoggedIn) {
+        debugPrint('[AUTH] Renovación automática de token programada');
+        await refreshAccessToken();
+      } else {
+        debugPrint(
+            '[AUTH] Usuario no logueado, cancelando timer de renovación');
+        _stopTokenRefreshTimer();
+      }
+    });
+
+    debugPrint(
+        '[AUTH] Timer de renovación automática iniciado (cada 12 minutos)');
+  }
+
+  // Detiene el timer automático de renovación
+  void _stopTokenRefreshTimer() {
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
+  }
+
+  @override
+  void onClose() {
+    _stopTokenRefreshTimer();
+    super.onClose();
   }
 
   // universidades que manejo

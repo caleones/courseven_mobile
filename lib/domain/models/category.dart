@@ -1,10 +1,12 @@
-/// Entidad de dominio para representar una categoría de curso
+/// Entidad de dominio para representar una categoría dentro de un curso
 class Category {
   final String id;
   final String name;
   final String? description;
-  final String? iconUrl;
-  final int orderIndex;
+  final String courseId;
+  final String teacherId;
+  final String groupingMethod; // 'manual' | 'random'
+  final int? maxMembersPerGroup;
   final DateTime createdAt;
   final bool isActive;
 
@@ -12,25 +14,22 @@ class Category {
     required this.id,
     required this.name,
     this.description,
-    this.iconUrl,
-    required this.orderIndex,
+    required this.courseId,
+    required this.teacherId,
+    required this.groupingMethod,
+    this.maxMembersPerGroup,
     required this.createdAt,
     this.isActive = true,
   });
 
-  /// Categoría tiene icono
-  bool get hasIcon => iconUrl != null && iconUrl!.isNotEmpty;
-
-  /// Categoría está activa
-  bool get isActiveCategory => isActive;
-
-  /// Crear copia de la categoría con cambios
   Category copyWith({
     String? id,
     String? name,
     String? description,
-    String? iconUrl,
-    int? orderIndex,
+    String? courseId,
+    String? teacherId,
+    String? groupingMethod,
+    int? maxMembersPerGroup,
     DateTime? createdAt,
     bool? isActive,
   }) {
@@ -38,40 +37,12 @@ class Category {
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
-      iconUrl: iconUrl ?? this.iconUrl,
-      orderIndex: orderIndex ?? this.orderIndex,
+      courseId: courseId ?? this.courseId,
+      teacherId: teacherId ?? this.teacherId,
+      groupingMethod: groupingMethod ?? this.groupingMethod,
+      maxMembersPerGroup: maxMembersPerGroup ?? this.maxMembersPerGroup,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
     );
-  }
-
-  @override
-  String toString() {
-    return 'Category(id: $id, name: $name, orderIndex: $orderIndex)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-
-    return other is Category &&
-        other.id == id &&
-        other.name == name &&
-        other.description == description &&
-        other.iconUrl == iconUrl &&
-        other.orderIndex == orderIndex &&
-        other.createdAt == createdAt &&
-        other.isActive == isActive;
-  }
-
-  @override
-  int get hashCode {
-    return id.hashCode ^
-        name.hashCode ^
-        description.hashCode ^
-        iconUrl.hashCode ^
-        orderIndex.hashCode ^
-        createdAt.hashCode ^
-        isActive.hashCode;
   }
 }

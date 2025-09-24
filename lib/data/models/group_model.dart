@@ -5,8 +5,9 @@ class GroupModel extends Group {
   const GroupModel({
     required super.id,
     required super.name,
-    super.description,
+    required super.categoryId,
     required super.courseId,
+    required super.teacherId,
     required super.createdAt,
     super.isActive,
   });
@@ -16,8 +17,9 @@ class GroupModel extends Group {
     return GroupModel(
       id: json['_id'] as String,
       name: json['name'] as String,
-      description: json['description'] as String?,
+      categoryId: json['category_id'] as String,
       courseId: json['course_id'] as String,
+      teacherId: json['teacher_id'] as String,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
@@ -30,8 +32,9 @@ class GroupModel extends Group {
     return {
       '_id': id,
       'name': name,
-      'description': description,
+      'category_id': categoryId,
       'course_id': courseId,
+      'teacher_id': teacherId,
       'created_at': createdAt.toIso8601String(),
       'is_active': isActive,
     };
@@ -41,16 +44,18 @@ class GroupModel extends Group {
   GroupModel copyWith({
     String? id,
     String? name,
-    String? description,
+    String? categoryId,
     String? courseId,
+    String? teacherId,
     DateTime? createdAt,
     bool? isActive,
   }) {
     return GroupModel(
       id: id ?? this.id,
       name: name ?? this.name,
-      description: description ?? this.description,
+      categoryId: categoryId ?? this.categoryId,
       courseId: courseId ?? this.courseId,
+      teacherId: teacherId ?? this.teacherId,
       createdAt: createdAt ?? this.createdAt,
       isActive: isActive ?? this.isActive,
     );
@@ -61,8 +66,9 @@ class GroupModel extends Group {
     return Group(
       id: id,
       name: name,
-      description: description,
+      categoryId: categoryId,
       courseId: courseId,
+      teacherId: teacherId,
       createdAt: createdAt,
       isActive: isActive,
     );

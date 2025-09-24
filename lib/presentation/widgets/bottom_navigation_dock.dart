@@ -5,13 +5,17 @@ import '../pages/home/home_page.dart';
 import '../pages/calendar/calendar_page.dart';
 import '../pages/account/account_page.dart';
 import '../pages/settings/settings_page.dart';
+import '../pages/notifications/notifications_page.dart';
 
 class BottomNavigationDock extends StatelessWidget {
-  final int currentIndex;
+  final int currentIndex; // -1 => ninguno seleccionado
+  // indicador de si hay notificaciones nuevas (punto)
+  final bool hasNewNotifications;
 
   const BottomNavigationDock({
     super.key,
     required this.currentIndex,
+    this.hasNewNotifications = false,
   });
 
   @override
@@ -57,12 +61,14 @@ class BottomNavigationDock extends StatelessWidget {
               }
             },
           ),
+          // botón de notificaciones dentro del dock (navega a screen)
+          _buildNotificationsItem(context: context, index: 2),
           _buildNavItem(
             context: context,
             icon: Icons.person,
-            index: 2,
+            index: 3,
             onTap: () {
-              if (currentIndex != 2) {
+              if (currentIndex != 3) {
                 Get.offAll(() => const AccountPage());
               }
             },
@@ -70,9 +76,9 @@ class BottomNavigationDock extends StatelessWidget {
           _buildNavItem(
             context: context,
             icon: Icons.settings,
-            index: 3,
+            index: 4,
             onTap: () {
-              if (currentIndex != 3) {
+              if (currentIndex != 4) {
                 Get.offAll(() => const SettingsPage());
               }
             },
@@ -88,7 +94,7 @@ class BottomNavigationDock extends StatelessWidget {
     required int index,
     required VoidCallback onTap,
   }) {
-    bool isSelected = index == currentIndex;
+    bool isSelected = currentIndex >= 0 && index == currentIndex;
 
     return GestureDetector(
       onTap: onTap,
@@ -106,6 +112,64 @@ class BottomNavigationDock extends StatelessWidget {
               ? AppTheme.goldAccent
               : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           size: 24,
+        ),
+      ),
+    );
+  }
+
+  // Item especial de notificaciones con punto indicador y tooltip
+  Widget _buildNotificationsItem(
+      {required BuildContext context, required int index}) {
+    final isSelected = index == currentIndex;
+    return Tooltip(
+      message: hasNewNotifications
+          ? 'Tienes nuevas notificaciones'
+          : 'Notificaciones',
+      child: GestureDetector(
+        onTap: () {
+          if (currentIndex != index) {
+            Get.offAll(() => const NotificationsPage());
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.goldAccent.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                isSelected ? Icons.notifications : Icons.notifications_none,
+                color: isSelected
+                    ? AppTheme.goldAccent
+                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                size: 24,
+              ),
+              if (hasNewNotifications)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppTheme.goldAccent,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.goldAccent.withOpacity(0.6),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

@@ -73,12 +73,19 @@ class _CalendarPageState extends State<CalendarPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.goldAccent.withOpacity(0.05),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.goldAccent.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).shadowColor.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

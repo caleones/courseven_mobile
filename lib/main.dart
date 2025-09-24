@@ -6,6 +6,7 @@ import 'core/config/app_routes.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/pages/auth/auth_gate.dart';
 import 'package:courseven/presentation/controllers/theme_controller.dart';
+import 'presentation/widgets/common/starry_background.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
@@ -59,6 +60,15 @@ class CourSEVENApp extends StatelessWidget {
           themeMode: themeController.themeMode,
           home: const AuthGate(),
           getPages: AppRoutes.routes,
+          builder: (context, child) {
+            // Aplica el fondo estelar a todas las pantallas
+            return GetBuilder<ThemeController>(
+              builder: (tc) => StarryBackground(
+                isDarkMode: tc.isDarkMode,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
         );
       },
     );
