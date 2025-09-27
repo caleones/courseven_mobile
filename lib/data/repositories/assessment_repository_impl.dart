@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import '../../domain/models/assessment.dart';
 import '../../domain/models/peer_review_summaries.dart';
 import '../../domain/repositories/assessment_repository.dart';
 import '../models/assessment_model.dart';
 import '../services/roble_service.dart';
+
+const String _assessmentsTable = 'assestments';
 
 class AssessmentRepositoryImpl implements AssessmentRepository {
   final RobleService _service;
@@ -22,32 +25,45 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
   Assessment _fromMap(Map<String, dynamic> m) =>
       AssessmentModel.fromJson(m).toEntity();
 
+  Future<List<Map<String, dynamic>>> _readAssessments(
+      Map<String, String> query) async {
+    final token = await _requireToken();
+    try {
+      return await _service.readTable(
+        accessToken: token,
+        table: _assessmentsTable,
+        query: query,
+        suppressErrorLog: true,
+      );
+    } catch (e) {
+      final message = e.toString();
+      if (message.contains('DB read assessments failed: 500')) {
+        debugPrint(
+            '[ASSESSMENTS][READ] Backend devolvió 500 para query=$query, asumiendo lista vacía.');
+        return const [];
+      }
+      rethrow;
+    }
+  }
+
   @override
   Future<List<Assessment>> getAssessmentsByActivity(String activityId) async {
-    final token = await _requireToken();
-    final rows = await _service.readTable(
-        accessToken: token,
-        table: 'assessments',
-        query: {'activity_id': activityId});
+    final rows = await _readAssessments({'activity_id': activityId});
     return rows.map(_fromMap).toList(growable: false);
   }
 
   @override
   Future<List<Assessment>> getAssessmentsByGroup(String groupId) async {
-    final token = await _requireToken();
-    final rows = await _service.readTable(
-        accessToken: token, table: 'assessments', query: {'group_id': groupId});
+    final rows = await _readAssessments({'group_id': groupId});
     return rows.map(_fromMap).toList(growable: false);
   }
 
   @override
   Future<List<Assessment>> getAssessmentsByReviewer(
       String activityId, String reviewerId) async {
-    final token = await _requireToken();
-    final rows = await _service
-        .readTable(accessToken: token, table: 'assessments', query: {
+    final rows = await _readAssessments({
       'activity_id': activityId,
-      'reviewer_id': reviewerId,
+      'reviewer': reviewerId,
     });
     return rows.map(_fromMap).toList(growable: false);
   }
@@ -55,11 +71,9 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
   @override
   Future<List<Assessment>> getAssessmentsReceivedByStudent(
       String activityId, String studentId) async {
-    final token = await _requireToken();
-    final rows = await _service
-        .readTable(accessToken: token, table: 'assessments', query: {
+    final rows = await _readAssessments({
       'activity_id': activityId,
-      'student_id': studentId,
+      'reviewed': studentId,
     });
     return rows.map(_fromMap).toList(growable: false);
   }
@@ -69,12 +83,10 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
       {required String activityId,
       required String reviewerId,
       required String studentId}) async {
-    final token = await _requireToken();
-    final rows = await _service
-        .readTable(accessToken: token, table: 'assessments', query: {
+    final rows = await _readAssessments({
       'activity_id': activityId,
-      'reviewer_id': reviewerId,
-      'student_id': studentId,
+      'reviewer': reviewerId,
+      'reviewed': studentId,
     });
     return rows.isNotEmpty;
   }
@@ -82,42 +94,93 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
   @override
   Future<Assessment> createAssessment(Assessment assessment) async {
     final token = await _requireToken();
-    final model = AssessmentModel(
-      id: assessment.id,
-      activityId: assessment.activityId,
-      groupId: assessment.groupId,
-      reviewerId: assessment.reviewerId,
-      studentId: assessment.studentId,
-      punctualityScore: assessment.punctualityScore,
-      contributionsScore: assessment.contributionsScore,
-      commitmentScore: assessment.commitmentScore,
-      attitudeScore: assessment.attitudeScore,
-      overallScorePersisted: assessment.overallScore,
-      createdAt: assessment.createdAt,
-      updatedAt: assessment.updatedAt,
+    final overallRounded =
+        double.parse(assessment.overallScore.toStringAsFixed(1));
+    final overallStored = (overallRounded * 10).round();
+
+    final insertPayload = {
+      'activity_id': assessment.activityId,
+      'group_id': assessment.groupId,
+      'reviewer': assessment.reviewerId,
+      'reviewed': assessment.studentId,
+      'punctuality_score': assessment.punctualityScore,
+      'contributions_score': assessment.contributionsScore,
+      'commitment_score': assessment.commitmentScore,
+      'attitude_score': assessment.attitudeScore,
+      'overall_score': overallStored,
+    };
+    debugPrint(
+        '[ASSESSMENTS][CREATE] Insert payload: ' + insertPayload.toString());
+    final response = await _service.insertTable(
+      accessToken: token,
+      table: _assessmentsTable,
+      records: [insertPayload],
     );
-    final inserted = await _service.insertTable(
-        accessToken: token, table: 'assessments', records: [model.toJson()]);
-    final list = (inserted['inserted'] as List?) ??
-        inserted['data'] as List? ??
+    final list = (response['inserted'] as List?) ??
+        response['data'] as List? ??
         const [];
-    if (list.isEmpty) throw Exception('Insert assessment sin retorno');
-    return _fromMap(list.first as Map<String, dynamic>);
+    final skippedRaw = (response['skipped'] as List?) ?? const [];
+    if (skippedRaw.isNotEmpty) {
+      debugPrint('[ASSESSMENTS][CREATE] Skipped: $skippedRaw');
+    }
+    if (list.isEmpty) {
+      final details =
+          skippedRaw.isNotEmpty ? skippedRaw.toString() : response.toString();
+      throw Exception('Insert assessment sin retorno: $details');
+    }
+    final raw = list.first as Map<String, dynamic>;
+    debugPrint('[ASSESSMENTS][CREATE] Insert result raw: ' + raw.toString());
+    final generatedId = raw['_id'] as String?;
+    if (generatedId == null || generatedId.isEmpty) {
+      debugPrint('[ASSESSMENTS][CREATE] WARNING: _id no retornado por backend');
+    }
+    final hasOverall =
+        raw.containsKey('overall_score') && raw['overall_score'] != null;
+    if (!hasOverall && generatedId != null && generatedId.isNotEmpty) {
+      try {
+        debugPrint(
+            '[ASSESSMENTS][OVERALL][UPDATE] _id=$generatedId overall_score=$overallRounded (scaled=$overallStored)');
+        await _service.updateRow(
+          accessToken: token,
+          table: _assessmentsTable,
+          id: generatedId,
+          updates: {'overall_score': overallStored},
+        );
+      } catch (e) {
+        debugPrint(
+            '[ASSESSMENTS][OVERALL][ERROR] Falló update overall_score: $e');
+      }
+    }
+    final enriched = Map<String, dynamic>.from(raw);
+    enriched['overall_score'] = enriched['overall_score'] ?? overallStored;
+    enriched['activity_id'] = enriched['activity_id'] ?? assessment.activityId;
+    enriched['group_id'] = enriched['group_id'] ?? assessment.groupId;
+    enriched['reviewer'] = enriched['reviewer'] ?? assessment.reviewerId;
+    enriched['reviewed'] = enriched['reviewed'] ?? assessment.studentId;
+    enriched['punctuality_score'] =
+        enriched['punctuality_score'] ?? assessment.punctualityScore;
+    enriched['contributions_score'] =
+        enriched['contributions_score'] ?? assessment.contributionsScore;
+    enriched['commitment_score'] =
+        enriched['commitment_score'] ?? assessment.commitmentScore;
+    enriched['attitude_score'] =
+        enriched['attitude_score'] ?? assessment.attitudeScore;
+    enriched['created_at'] =
+        enriched['created_at'] ?? assessment.createdAt.toIso8601String();
+    return _fromMap(enriched);
   }
 
-  // ===== Extended helpers =====
+  
   @override
   Future<List<Assessment>> getAssessmentsForStudentAcrossActivities(
       List<String> activityIds, String studentId) async {
     if (activityIds.isEmpty) return const [];
-    final token = await _requireToken();
-    // naive approach: multiple calls; could be optimized with backend support (IN query)
+    
     final List<Assessment> all = [];
     for (final actId in activityIds) {
-      final rows = await _service
-          .readTable(accessToken: token, table: 'assessments', query: {
+      final rows = await _readAssessments({
         'activity_id': actId,
-        'student_id': studentId,
+        'reviewed': studentId,
       });
       all.addAll(rows.map(_fromMap));
     }
@@ -131,9 +194,9 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
     required String reviewerId,
     required List<String> groupMemberIds,
   }) async {
-    // DEBUG OVERRIDE: incluir self para permitir auto-evaluación durante pruebas.
-    // Lógica original (excluir self):
-    // final peers = groupMemberIds.where((id) => id != reviewerId).toList();
+    
+    
+    
     final peers = groupMemberIds.toList();
     if (peers.isEmpty) return const [];
     final existing = await getAssessmentsByReviewer(activityId, reviewerId);
@@ -141,12 +204,12 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
     return peers.where((p) => !doneIds.contains(p)).toList(growable: false);
   }
 
-  // ===== Aggregations =====
+  
   @override
   Future<ActivityPeerReviewSummary> computeActivitySummary(
       String activityId) async {
     final assessments = await getAssessmentsByActivity(activityId);
-    // group by groupId then by studentId (received)
+    
     final Map<String, List<Assessment>> byGroup = {};
     for (final a in assessments) {
       byGroup.putIfAbsent(a.groupId, () => []).add(a);
@@ -187,13 +250,13 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
     if (activityIds.isEmpty) {
       return const CoursePeerReviewSummary(students: [], groups: []);
     }
-    // Load all assessments per activity (sequentially for now)
+    
     final Map<String, List<Assessment>> byActivity = {};
     for (final id in activityIds) {
       byActivity[id] = await getAssessmentsByActivity(id);
     }
     final allAssessments = byActivity.values.expand((l) => l).toList();
-    // group by studentId (received)
+    
     final Map<String, List<Assessment>> byStudent = {};
     for (final a in allAssessments) {
       byStudent.putIfAbsent(a.studentId, () => []).add(a);
@@ -206,7 +269,7 @@ class AssessmentRepositoryImpl implements AssessmentRepository {
         averages: av,
       );
     }).toList(growable: false);
-    // group by groupId of evaluated student
+    
     final Map<String, List<Assessment>> byGroup = {};
     for (final a in allAssessments) {
       byGroup.putIfAbsent(a.groupId, () => []).add(a);

@@ -1,6 +1,6 @@
 import '../../domain/models/category.dart';
 
-/// Modelo de datos para Category con serialización JSON
+
 class CategoryModel extends Category {
   const CategoryModel({
     required super.id,
@@ -14,7 +14,7 @@ class CategoryModel extends Category {
     super.isActive,
   });
 
-  /// Crear CategoryModel desde JSON
+  
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
     return CategoryModel(
       id: json['_id'] as String,
@@ -31,7 +31,7 @@ class CategoryModel extends Category {
     );
   }
 
-  /// Convertir CategoryModel a JSON
+  
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -46,7 +46,7 @@ class CategoryModel extends Category {
     };
   }
 
-  /// Convertir a entidad de dominio
+  
   Category toEntity() {
     return Category(
       id: id,

@@ -37,7 +37,7 @@ class CourseRepositoryImpl implements CourseRepository {
   Future<Course?> getCourseById(String courseId) async {
     try {
       final token = await _requireToken();
-      // Permitimos leer cursos aunque estén inactivos para que aparezcan en listados docente.
+      
       final rows = await _service.readCourses(
         accessToken: token,
         query: {'_id': courseId},
@@ -52,7 +52,7 @@ class CourseRepositoryImpl implements CourseRepository {
 
   @override
   Future<List<Course>> getCoursesByCategory(String categoryId) async {
-    // Category is not a Course attribute in this model; return empty list / or throw
+    
     debugPrint('[COURSE_REPO] getCoursesByCategory not supported');
     return [];
   }
@@ -64,7 +64,7 @@ class CourseRepositoryImpl implements CourseRepository {
       accessToken: token,
       teacherId: teacherId,
     );
-    // NO filtramos por is_active: el docente necesita ver también inactivos.
+    
     return rows.map(_fromMap).toList(growable: false);
   }
 
@@ -72,12 +72,12 @@ class CourseRepositoryImpl implements CourseRepository {
   Future<Course> createCourse(Course course) async {
     final token = await _requireToken();
     final record = _toRecord(course);
-    // remove id if client-generated empty
+    
     if (record['_id'] == null || (record['_id'] as String).isEmpty) {
       record.remove('_id');
     }
     final res = await _service.insertCourse(accessToken: token, record: record);
-    // Expected shape: { inserted: [{_id: ... , ...}], skipped: [] }
+    
     final inserted = (res['inserted'] as List?) ?? const [];
     if (inserted.isEmpty) {
       throw Exception('Insert no retornó registros');
@@ -88,7 +88,7 @@ class CourseRepositoryImpl implements CourseRepository {
   @override
   Future<Course> updateCourse(Course course, {bool partial = true}) async {
     final token = await _requireToken();
-    // Only send editable user-facing fields unless a full sync is explicitly requested.
+    
     final updates = <String, dynamic>{
       'name': course.name,
       'description': course.description,
@@ -108,7 +108,7 @@ class CourseRepositoryImpl implements CourseRepository {
     if (updated.isNotEmpty) {
       return _fromMap(updated.first);
     }
-    // fallback: re-read
+    
     final again = await getCourseById(course.id);
     if (again == null) throw Exception('No se pudo leer curso actualizado');
     return again;
@@ -150,7 +150,7 @@ class CourseRepositoryImpl implements CourseRepository {
 
   @override
   Future<List<Course>> searchCoursesByTitle(String title) async {
-    // Not required for this task
+    
     return [];
   }
 
@@ -168,7 +168,7 @@ class CourseRepositoryImpl implements CourseRepository {
 
   @override
   Future<List<Course>> getActiveCourses() async {
-    // Not required for this task
+    
     return [];
   }
 
@@ -178,19 +178,19 @@ class CourseRepositoryImpl implements CourseRepository {
       int limit = 10,
       String? categoryId,
       String? teacherId}) async {
-    // Not required for this task
+    
     return [];
   }
 
   @override
   Future<List<Course>> getCoursesOrdered() async {
-    // Not required for this task
+    
     return [];
   }
 
   @override
   Future<bool> updateCoursesOrder(List<String> courseIds) async {
-    // Not required for this task
+    
     return false;
   }
 }

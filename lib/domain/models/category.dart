@@ -1,11 +1,11 @@
-/// Entidad de dominio para representar una categoría dentro de un curso
+
 class Category {
   final String id;
   final String name;
   final String? description;
   final String courseId;
   final String teacherId;
-  final String groupingMethod; // 'manual' | 'random'
+  final String groupingMethod; 
   final int? maxMembersPerGroup;
   final DateTime createdAt;
   final bool isActive;

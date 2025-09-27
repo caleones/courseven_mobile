@@ -1,6 +1,6 @@
 import '../../domain/models/course.dart';
 
-/// Modelo de datos para Course con serialización JSON
+
 class CourseModel extends Course {
   const CourseModel({
     required super.id,
@@ -12,7 +12,7 @@ class CourseModel extends Course {
     super.isActive,
   });
 
-  /// Crear CourseModel desde JSON
+  
   factory CourseModel.fromJson(Map<String, dynamic> json) {
     return CourseModel(
       id: json['_id'] as String,
@@ -27,7 +27,7 @@ class CourseModel extends Course {
     );
   }
 
-  /// Convertir CourseModel a JSON
+  
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -40,7 +40,7 @@ class CourseModel extends Course {
     };
   }
 
-  /// Crear copia con cambios
+  
   CourseModel copyWith({
     String? id,
     String? name,
@@ -61,7 +61,7 @@ class CourseModel extends Course {
     );
   }
 
-  /// Convertir a entidad de dominio
+  
   Course toEntity() {
     return Course(
       id: id,

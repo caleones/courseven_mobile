@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../theme/app_theme.dart';
+import 'dart:math' as math;
 import '../bottom_navigation_dock.dart';
 
-/// Reusable visual components for course related pages to ensure a consistent style.
-/// Components: CoursePageScaffold, CourseHeader, SectionCard, SolidListTile, DualActionButtons
+
+
 
 class CoursePageScaffold extends StatelessWidget {
   final Widget header;
@@ -12,7 +13,7 @@ class CoursePageScaffold extends StatelessWidget {
   final EdgeInsets padding;
   final bool showDock;
   final int dockIndex;
-  final bool hasNotifications; // reserved for future badge logic
+  final bool hasNotifications; 
   final Future<void> Function()? onRefresh;
   const CoursePageScaffold({
     super.key,
@@ -63,7 +64,7 @@ class CourseHeader extends StatelessWidget {
   final bool showEdit;
   final VoidCallback? onEdit;
   final bool inactive;
-  final List<Widget>? trailingExtras; // widgets placed after the edit button
+  final List<Widget>? trailingExtras; 
   final EdgeInsets margin;
   const CourseHeader({
     super.key,
@@ -112,22 +113,7 @@ class CourseHeader extends StatelessWidget {
                             .headlineSmall
                             ?.copyWith(
                                 fontWeight: FontWeight.w800, height: 1.15)),
-                    if (inactive)
-                      Container(
-                        margin: const EdgeInsets.only(left: 8, top: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.orange.withOpacity(.5)),
-                        ),
-                        child: Text('Inactivo',
-                            style: TextStyle(
-                                color: Colors.orange[600],
-                                fontWeight: FontWeight.w600)),
-                      ),
+                    
                   ],
                 ),
               ],
@@ -160,7 +146,7 @@ class CourseHeader extends StatelessWidget {
 
 class SectionCard extends StatelessWidget {
   final String title;
-  final int? count; // null => no badge/label
+  final int? count; 
   final Widget child;
   final IconData? leadingIcon;
   final bool outlined;
@@ -225,7 +211,7 @@ class SectionCard extends StatelessWidget {
   }
 }
 
-// Minimal header-only alternative (no background container)
+
 class SectionHeaderSlim extends StatelessWidget {
   final String title;
   final int? count;
@@ -275,13 +261,16 @@ class SectionHeaderSlim extends StatelessWidget {
 
 class SolidListTile extends StatelessWidget {
   final String title;
-  final String? subtitle; // legacy simple text usage
+  final String? subtitle; 
   final Widget? trailing;
   final VoidCallback? onTap;
   final IconData? leadingIcon;
   final bool goldOutline;
-  final Widget? bodyBelowTitle; // New: arbitrary widget (e.g., vertical pills)
+  final Widget? bodyBelowTitle; 
   final bool dense;
+  final Color? outlineColor;
+  final Color? leadingIconColor;
+  final double? marginBottom; 
   const SolidListTile({
     super.key,
     required this.title,
@@ -292,6 +281,9 @@ class SolidListTile extends StatelessWidget {
     this.goldOutline = true,
     this.bodyBelowTitle,
     this.dense = false,
+    this.outlineColor,
+    this.leadingIconColor,
+    this.marginBottom,
   });
   @override
   Widget build(BuildContext context) {
@@ -300,23 +292,28 @@ class SolidListTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
-        margin: EdgeInsets.only(bottom: dense ? 8 : 12),
+        margin: EdgeInsets.only(bottom: marginBottom ?? (dense ? 8 : 12)),
         padding: EdgeInsets.symmetric(
             horizontal: dense ? 12 : 14, vertical: dense ? 10 : 14),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: goldOutline
-                  ? AppTheme.goldAccent.withOpacity(.45)
-                  : Theme.of(context).colorScheme.primary.withOpacity(.12)),
+              color: outlineColor ??
+                  (goldOutline
+                      ? AppTheme.goldAccent.withOpacity(.45)
+                      : Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(.12))),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (leadingIcon != null) ...[
               Icon(leadingIcon,
-                  size: dense ? 18 : 20, color: AppTheme.goldAccent),
+                  size: dense ? 18 : 20,
+                  color: leadingIconColor ?? AppTheme.goldAccent),
               SizedBox(width: dense ? 8 : 10),
             ],
             Expanded(
@@ -428,7 +425,145 @@ class DualActionButtons extends StatelessWidget {
   }
 }
 
-// Utility: intersperse widgets with a separator widget
+
+
+class Pill extends StatelessWidget {
+  final String text;
+  final IconData? icon;
+  final bool danger;
+  final bool gold;
+  
+  
+  final double? maxWidth;
+  
+  
+  final double screenWidthFactor;
+  final double safeHorizontalPadding;
+  const Pill(
+      {super.key,
+      required this.text,
+      this.icon,
+      this.danger = false,
+      this.gold = true,
+      this.maxWidth,
+      this.screenWidthFactor = 0.5,
+      this.safeHorizontalPadding = 96});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color borderColor = danger
+        ? AppTheme.dangerRed
+        : (gold
+            ? AppTheme.goldAccent.withOpacity(.45)
+            : Theme.of(context).dividerColor.withOpacity(.4));
+    final Color bgColor = danger
+        ? AppTheme.dangerRed.withOpacity(.12)
+        : (gold
+            ? AppTheme.goldAccent.withOpacity(.12)
+            : Theme.of(context).colorScheme.surfaceVariant.withOpacity(.35));
+    final Color fgColor = danger
+        ? AppTheme.dangerRed
+        : Theme.of(context).colorScheme.onSurface.withOpacity(.8);
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        
+        
+        final screenW = MediaQuery.of(ctx).size.width;
+        final fallback = ((screenW - safeHorizontalPadding) * screenWidthFactor)
+            .clamp(140.0, 520.0);
+        final capFromConstraints = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : double.infinity;
+        final effectiveCap = maxWidth ?? math.min(capFromConstraints, fallback);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: fgColor),
+                const SizedBox(width: 6),
+              ],
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                    
+                    
+                    maxWidth: (effectiveCap - (icon != null ? 22 : 0))
+                        .clamp(100.0, double.infinity)),
+                child: Text(
+                  text,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: fgColor),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class DatePill extends StatelessWidget {
+  final DateTime? dueDate;
+  const DatePill({super.key, required this.dueDate});
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final label =
+        dueDate != null ? 'Vence: ${_fmtDate(dueDate!)}' : 'Sin fecha límite';
+    return Pill(text: label, icon: Icons.schedule, gold: true);
+  }
+}
+
+
+
+class SaveButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final bool loading;
+  final String label;
+  final IconData icon;
+  const SaveButton({
+    super.key,
+    this.onPressed,
+    this.loading = false,
+    this.label = 'GUARDAR',
+    this.icon = Icons.save,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: Icon(icon),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.goldAccent,
+          foregroundColor: AppTheme.premiumBlack,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        onPressed: loading ? null : onPressed,
+        label: Text(loading ? '$label…' : label),
+      ),
+    );
+  }
+}
+
+
 Iterable<Widget> _intersperse(List<Widget> items, Widget separator) sync* {
   for (var i = 0; i < items.length; i++) {
     yield items[i];

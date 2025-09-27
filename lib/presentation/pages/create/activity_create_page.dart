@@ -24,9 +24,9 @@ class _ActivityCreatePageState extends State<ActivityCreatePage> {
   String? _selectedCategoryId;
   bool _lockCourse = false;
   bool _lockCategory = false;
-  // When page is opened globally with a preselected (locked) course/category that
-  // isn't yet in the reactive lists (because data will load async), we keep a
-  // local copy of their resolved names to show instead of a generic placeholder.
+  
+  
+  
   String? _lockedCourseName;
   String? _lockedCategoryName;
 
@@ -47,14 +47,14 @@ class _ActivityCreatePageState extends State<ActivityCreatePage> {
     _lockCourse = args?['lockCourse'] == true;
     _lockCategory = args?['lockCategory'] == true;
 
-    // Load teacher courses for selectors
+    
     courseController.loadMyTeachingCourses();
-    // If we have a preselected course, load its categories immediately
+    
     if (_selectedCourseId != null && _selectedCourseId!.isNotEmpty) {
       categoryController.loadByCourse(_selectedCourseId!);
     }
 
-    // If course is locked but not guaranteed in teacherCourses yet, prefetch its name
+    
     if (_lockCourse &&
         _selectedCourseId != null &&
         _selectedCourseId!.isNotEmpty) {
@@ -65,7 +65,7 @@ class _ActivityCreatePageState extends State<ActivityCreatePage> {
       });
     }
 
-    // If category is locked, attempt to resolve its name after categories load
+    
     if (_lockCategory &&
         _selectedCourseId != null &&
         _selectedCourseId!.isNotEmpty &&
@@ -109,7 +109,7 @@ class _ActivityCreatePageState extends State<ActivityCreatePage> {
           backgroundColor: Colors.red[400], colorText: Colors.white);
       return;
     }
-    // Centralized inactive guard
+    
     final courseController = Get.find<CourseController>();
     final ok = await courseController.ensureCourseActiveOrWarn(
         _selectedCourseId!, 'actividades');
@@ -191,7 +191,7 @@ class _ActivityCreatePageState extends State<ActivityCreatePage> {
                     onChanged: _lockCourse
                         ? null
                         : (v) {
-                            if (v == _selectedCourseId) return; // no-op
+                            if (v == _selectedCourseId) return; 
                             setState(() {
                               _selectedCourseId = v;
                               _selectedCategoryId = null;
@@ -203,16 +203,16 @@ class _ActivityCreatePageState extends State<ActivityCreatePage> {
                   );
                 }),
                 const SizedBox(height: 12),
-                // IMPORTANT: Usábamos GetX<CategoryController> pero cuando
-                // _selectedCourseId es null no se accedía a ningún Rx y GetX
-                // mostraba el error rojo "improper use of a GetX". Aquí
-                // usamos Obx sobre el mapa reactivo para que siempre exista
-                // al menos una dependencia, aunque no haya curso elegido.
+                
+                
+                
+                
+                
                 Obx(() {
-                  final map = categoryController.categoriesByCourse; // RxMap
-                  // Referencia extra para asegurar dependencia incluso sin curso
-                  // (evita advertencia de GetX al no usar valores reactivos).
-                  final _ = map.length; // ignore: unused_local_variable
+                  final map = categoryController.categoriesByCourse; 
+                  
+                  
+                  final _ = map.length; 
 
                   final cats = _selectedCourseId != null
                       ? (map[_selectedCourseId!] ?? const [])

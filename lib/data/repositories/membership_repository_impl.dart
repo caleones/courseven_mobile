@@ -66,13 +66,13 @@ class MembershipRepositoryImpl implements MembershipRepository {
     if (record['_id'] == null || (record['_id'] as String).isEmpty) {
       record.remove('_id');
     }
-    // Debug logs
-    // ignore: avoid_print
+    
+    
     print(
         '[MembershipRepo] Creando membresía con record: ' + record.toString());
     final res =
         await _service.insertMembership(accessToken: token, record: record);
-    // ignore: avoid_print
+    
     print('[MembershipRepo] Respuesta insertMembership: ' + res.toString());
     final inserted = (res['inserted'] as List?) ?? const [];
     if (inserted.isEmpty) {
@@ -90,13 +90,13 @@ class MembershipRepositoryImpl implements MembershipRepository {
 
   @override
   Future<Membership> updateMembership(Membership membership) async {
-    // Not implemented: Requires update endpoint; for now, throw.
+    
     throw UnimplementedError();
   }
 
   @override
   Future<bool> deleteMembership(String membershipId) async {
-    // Soft delete not implemented in service; could set is_active=false if update existed.
+    
     return false;
   }
 
@@ -122,7 +122,7 @@ class MembershipRepositoryImpl implements MembershipRepository {
   @override
   Future<List<Membership>> getMembershipsPaginated(
       {int page = 1, int limit = 10}) async {
-    // Pagination not supported directly; emulate via _limit/_offset if available. For now, fetch all.
+    
     final token = await _requireToken();
     final rows = await _service.readMemberships(accessToken: token);
     return rows.map(_fromMap).toList(growable: false);

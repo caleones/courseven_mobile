@@ -1,5 +1,6 @@
-// (Legacy header removed during redesign)
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'dart:async';
 import 'package:get/get.dart';
 
 import '../../../core/config/app_routes.dart';
@@ -12,13 +13,10 @@ import '../../controllers/membership_controller.dart';
 import '../../widgets/inactive_gate.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/course/course_ui_components.dart';
+import '../../widgets/revalidation_mixin.dart';
+import '../../../core/utils/refresh_manager.dart';
+import '../../../core/utils/app_event_bus.dart';
 
-/// Rediseño visual del detalle del curso con:
-///  - Encabezado personalizado (sin AppBar estándar)
-///  - Título multilinea y pill de edición a la derecha
-///  - Tarjetas seccionales sólidas (Actividades, Categorías, Grupos)
-///  - Botones de acción estilizados y consistentes
-///  - Dock de navegación inferior reinstalado
 class CourseDetailPage extends StatefulWidget {
   const CourseDetailPage({super.key});
 
@@ -26,7 +24,8 @@ class CourseDetailPage extends StatefulWidget {
   State<CourseDetailPage> createState() => _CourseDetailPageState();
 }
 
-class _CourseDetailPageState extends State<CourseDetailPage> {
+class _CourseDetailPageState extends State<CourseDetailPage>
+    with RevalidationMixin {
   late final String courseId;
   bool _requestedCourseLoad = false;
 
@@ -36,13 +35,28 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
   final groupController = Get.find<GroupController>();
   final membershipController = Get.find<MembershipController>();
   final activityController = Get.find<ActivityController>();
+  late final AppEventBus _bus;
+  StreamSubscription<Object>? _sub;
 
   @override
   void initState() {
     super.initState();
     final args = Get.arguments as Map<String, dynamic>?;
     courseId = args?['courseId'] ?? '';
+    _bus = Get.find<AppEventBus>();
+    _sub = _bus.stream.listen((event) {
+      if (event is EnrollmentJoinedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+      if (event is MembershipJoinedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+      if (event is ActivityChangedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+    });
     if (courseId.isNotEmpty) {
+      courseController.getCourseById(courseId);
       categoryController.loadByCourse(courseId);
       activityController.loadForCourse(courseId);
       groupController.loadByCourse(courseId).then((groups) {
@@ -52,6 +66,55 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         membershipController.preloadMemberCountsForGroups(ids);
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Duration? get pollingInterval => const Duration(seconds: 60);
+
+  @override
+  Future<void> revalidate({bool force = false}) async {
+    if (courseId.isEmpty) return;
+    final refresh = Get.find<RefreshManager>();
+    await Future.wait([
+      refresh.run(
+        key: 'activities:course:$courseId',
+        ttl: const Duration(seconds: 20),
+        action: () => activityController.loadForCourse(courseId),
+        force: force,
+      ),
+      refresh.run(
+        key: 'categories:course:$courseId',
+        ttl: const Duration(seconds: 45),
+        action: () => categoryController.loadByCourse(courseId),
+        force: force,
+      ),
+      refresh.run(
+        key: 'groups:course:$courseId',
+        ttl: const Duration(seconds: 45),
+        action: () async {
+          final groups = await groupController.loadByCourse(courseId);
+          final ids = groups.map((g) => g.id).toList(growable: false);
+          if (ids.isNotEmpty) {
+            await membershipController.preloadMembershipsForGroups(ids);
+            await membershipController.preloadMemberCountsForGroups(ids);
+          }
+        },
+        force: force,
+      ),
+      refresh.run(
+        key: 'enrollCount:course:$courseId',
+        ttl: const Duration(seconds: 30),
+        action: () => enrollmentController
+            .loadEnrollmentCountForCourse(courseId, force: true),
+        force: force,
+      ),
+    ]);
   }
 
   @override
@@ -80,8 +143,13 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       final categoryCount =
           categoryController.categoriesByCourse[courseId]?.length ?? 0;
       final groupCount = groupController.groupsByCourse[courseId]?.length ?? 0;
+      final reviewActivityIds =
+          (activityController.activitiesByCourse[courseId] ?? const [])
+              .where((a) => a.reviewing && !a.privateReview)
+              .map((a) => a.id)
+              .toList(growable: false);
+      final showPeerReviewSection = isTeacher || reviewActivityIds.isNotEmpty;
 
-      // Trigger enrollment count lazy load (only once)
       enrollmentController.loadEnrollmentCountForCourse(courseId);
       final enrollmentCount = enrollmentController.enrollmentCountFor(courseId);
 
@@ -109,6 +177,15 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         ),
         sections: [
           if (isInactive) _inactiveBanner(isTeacher),
+          if (showPeerReviewSection)
+            SectionCard(
+              title: 'Peer Review',
+              leadingIcon: Icons.analytics_outlined,
+              child: _peerReviewSection(
+                isTeacher: isTeacher,
+                reviewActivityIds: reviewActivityIds,
+              ),
+            ),
           SectionCard(
             title: 'Actividades',
             count: activityCount,
@@ -132,7 +209,108 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
     });
   }
 
-  // Legacy header & section card replaced by CourseHeader and SectionCard components.
+  Widget _peerReviewSection({
+    required bool isTeacher,
+    required List<String> reviewActivityIds,
+  }) {
+    final theme = Theme.of(context);
+    final reviewCount = reviewActivityIds.length;
+    final groups = groupController.groupsByCourse[courseId] ?? const [];
+    final myGroup = !isTeacher
+        ? groups.firstWhereOrNull(
+            (g) => membershipController.myGroupIds.contains(g.id))
+        : null;
+    final children = <Widget>[];
+
+    if (isTeacher) {
+      children.add(
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.analytics_outlined),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.successGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            onPressed: reviewCount == 0
+                ? null
+                : () =>
+                    Get.toNamed(AppRoutes.peerReviewCourseSummary, arguments: {
+                      'courseId': courseId,
+                      'activityIds': reviewActivityIds,
+                    }),
+            label: const Text('RESULTADOS'),
+          ),
+        ),
+      );
+      children.add(const SizedBox(height: 12));
+      children.add(Text(
+        reviewCount == 0
+            ? 'Aún no hay actividades públicas de peer review en este curso.'
+            : 'Incluye $reviewCount ${reviewCount == 1 ? 'actividad' : 'actividades'} con peer review público.',
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(.7)),
+      ));
+    } else {
+      if (reviewCount == 0) {
+        children.add(Text(
+          'Aún no hay actividades públicas de peer review en este curso.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(.7)),
+        ));
+      } else if (myGroup == null) {
+        children.add(Text(
+          'Únete a un grupo para ver el promedio de tu grupo.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(.7)),
+        ));
+      } else {
+        children.add(
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.groups),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onPressed: () => Get.toNamed(
+                AppRoutes.peerReviewGroupSummary,
+                arguments: {
+                  'courseId': courseId,
+                  'groupId': myGroup.id,
+                  'activityIds': reviewActivityIds,
+                  'groupName': myGroup.name,
+                },
+              ),
+              label: const Text('PROMEDIO DE MI GRUPO'),
+            ),
+          ),
+        );
+        children.add(const SizedBox(height: 12));
+        children.add(Text(
+          'Actividades consideradas: $reviewCount.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(.65)),
+        ));
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < children.length; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: i == children.length - 1 ? 0 : 8),
+            child: children[i],
+          ),
+      ],
+    );
+  }
 
   Widget _inactiveBanner(bool isTeacher) {
     return Container(
@@ -153,13 +331,22 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Este curso está inhabilitado. No puedes crear actividades, categorías o grupos hasta habilitarlo.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.orange[300]),
-                ),
+                if (isTeacher)
+                  Text(
+                    'Este curso está inhabilitado. No puedes crear actividades, categorías o grupos hasta habilitarlo.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.orange[300]),
+                  )
+                else
+                  Text(
+                    'Este curso está inhabilitado. Por ahora no puedes realizar acciones en este curso.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Colors.orange[300]),
+                  ),
                 if (isTeacher)
                   Align(
                     alignment: Alignment.centerLeft,
@@ -206,9 +393,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       inactive: isInactive,
       child: Obx(() {
         final acts = activityController.previewForCourse(courseId, 3);
-        final allActs =
-            activityController.activitiesByCourse[courseId] ?? const [];
-        final peerActs = allActs.where((a) => a.reviewing).toList();
+
         if (activityController.isLoading.value && acts.isEmpty) {
           return const Center(
               child: Padding(
@@ -220,37 +405,37 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DualActionButtons(
-              primaryLabel: 'CREAR ACTIVIDAD',
-              secondaryLabel: 'VER TODAS',
-              primaryIcon: Icons.add_task,
-              secondaryIcon: Icons.visibility,
-              primaryEnabled: isTeacher && !isInactive,
-              onPrimary: () => Get.toNamed(AppRoutes.activityCreate,
-                  arguments: {'courseId': courseId, 'lockCourse': true}),
-              onSecondary: () => Get.toNamed(AppRoutes.courseActivities,
-                  arguments: {'courseId': courseId}),
-            ),
-            if (isTeacher && peerActs.isNotEmpty) ...[
-              const SizedBox(height: 8),
+            if (isTeacher)
+              DualActionButtons(
+                primaryLabel: 'NUEVA',
+                secondaryLabel: 'VER TODAS',
+                primaryIcon: Icons.add_task,
+                secondaryIcon: Icons.visibility,
+                primaryEnabled: isTeacher && !isInactive,
+                onPrimary: () => Get.toNamed(AppRoutes.activityCreate,
+                    arguments: {'courseId': courseId, 'lockCourse': true}),
+                onSecondary: () => Get.toNamed(AppRoutes.courseActivities,
+                    arguments: {'courseId': courseId}),
+              )
+            else
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.analytics_outlined),
-                  label: const Text('RESUMEN GLOBAL PEER REVIEW'),
-                  onPressed: () => Get.toNamed(
-                    AppRoutes.peerReviewCourseSummary,
-                    arguments: {
-                      'courseId': courseId,
-                      'activityIds': peerActs.map((a) => a.id).toList(),
-                    },
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.visibility),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.successGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
                   ),
+                  onPressed: () => Get.toNamed(AppRoutes.courseActivities,
+                      arguments: {'courseId': courseId}),
+                  label: const Text('VER TODAS'),
                 ),
               ),
-            ],
             const SizedBox(height: 12),
             if (acts.isEmpty)
-              _placeholderCard('No hay actividades aún')
+              _spiderEmptyCard('No hay actividades aún')
             else
               ...acts.asMap().entries.map((entry) {
                 final idx = entry.key;
@@ -264,15 +449,15 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                     final groupName = snap.data;
                     final pills = <Widget>[];
                     if (cat != null)
-                      pills.add(_simplePill(cat.name, icon: Icons.category));
-                    pills.add(_simplePill(
-                        dueDateStr != null
+                      pills.add(Pill(text: cat.name, icon: Icons.category));
+                    pills.add(Pill(
+                        text: dueDateStr != null
                             ? 'Vence: $dueDateStr'
                             : 'Sin fecha límite',
                         icon: Icons.schedule));
                     if (groupName != null)
-                      pills.add(_simplePill('Tu grupo: $groupName',
-                          icon: Icons.group));
+                      pills.add(Pill(
+                          text: 'Tu grupo: $groupName', icon: Icons.group));
                     return FadeSlideIn(
                       index: idx,
                       child: SolidListTile(
@@ -314,30 +499,74 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DualActionButtons(
-              primaryLabel: 'CREAR CATEGORÍA',
-              secondaryLabel: 'VER TODAS',
-              primaryIcon: Icons.add,
-              secondaryIcon: Icons.visibility,
-              primaryEnabled: isTeacher && !isInactive,
-              onPrimary: () => Get.toNamed(AppRoutes.categoryCreate,
-                  arguments: {'courseId': courseId, 'lockCourse': true}),
-              onSecondary: () => Get.toNamed(AppRoutes.courseCategories,
-                  arguments: {'courseId': courseId}),
-            ),
+            if (isTeacher)
+              DualActionButtons(
+                primaryLabel: 'NUEVA',
+                secondaryLabel: 'VER TODAS',
+                primaryIcon: Icons.add,
+                secondaryIcon: Icons.visibility,
+                primaryEnabled: isTeacher && !isInactive,
+                onPrimary: () => Get.toNamed(AppRoutes.categoryCreate,
+                    arguments: {'courseId': courseId, 'lockCourse': true}),
+                onSecondary: () => Get.toNamed(AppRoutes.courseCategories,
+                    arguments: {'courseId': courseId}),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.visibility),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.successGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => Get.toNamed(AppRoutes.courseCategories,
+                      arguments: {'courseId': courseId}),
+                  label: const Text('VER TODAS'),
+                ),
+              ),
             const SizedBox(height: 12),
             if (preview.isEmpty)
-              _placeholderCard('No hay categorías aún')
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 26),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: AppTheme.goldAccent.withOpacity(.35), width: 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.category_outlined,
+                        size: 42, color: AppTheme.goldAccent.withOpacity(.65)),
+                    const SizedBox(height: 12),
+                    Text('No hay categorías aún',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(.75))),
+                  ],
+                ),
+              )
             else
               ...preview.asMap().entries.map((entry) {
                 final idx = entry.key;
                 final c = entry.value;
                 final pills = <Widget>[
-                  _simplePill('Agrupación: ${c.groupingMethod}',
+                  Pill(
+                      text: 'Agrupación: ${c.groupingMethod}',
                       icon: Icons.group_work)
                 ];
                 if (c.maxMembersPerGroup != null) {
-                  pills.add(_simplePill('Máx: ${c.maxMembersPerGroup}',
+                  pills.add(Pill(
+                      text: 'Máx: ${c.maxMembersPerGroup}',
                       icon: Icons.people));
                 }
                 return FadeSlideIn(
@@ -364,7 +593,7 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       inactive: isInactive,
       child: Obx(() {
         final list = groupController.groupsByCourse[courseId] ?? const [];
-        final preview = list.take(3).toList();
+        var preview = list.take(3).toList();
         if (groupController.isLoading.value && list.isEmpty) {
           return const Center(
             child: Padding(
@@ -398,34 +627,58 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                         .withOpacity(.75),
                   )),
               const SizedBox(height: 6),
-              Text('Crea el primero para organizar equipos',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(.55),
-                  )),
             ],
           ),
         );
 
         final cats =
             categoryController.categoriesByCourse[courseId] ?? const [];
+
+        if (!isTeacher && membershipController.myGroupIds.isNotEmpty) {
+          final joinedByCategory = <String, String>{};
+          for (final g in list) {
+            if (membershipController.myGroupIds.contains(g.id)) {
+              joinedByCategory[g.categoryId] = g.id;
+            }
+          }
+          if (joinedByCategory.isNotEmpty) {
+            preview = preview.where((g) {
+              final keepId = joinedByCategory[g.categoryId];
+              return keepId == null || keepId == g.id;
+            }).toList();
+          }
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DualActionButtons(
-              primaryLabel: 'CREAR GRUPO',
-              secondaryLabel: 'VER TODOS',
-              primaryIcon: Icons.group_add,
-              secondaryIcon: Icons.visibility,
-              primaryEnabled: isTeacher && !isInactive,
-              onPrimary: () => Get.toNamed(AppRoutes.groupCreate,
-                  arguments: {'courseId': courseId, 'lockCourse': true}),
-              onSecondary: () => Get.toNamed(AppRoutes.courseGroups,
-                  arguments: {'courseId': courseId}),
-            ),
+            if (isTeacher)
+              DualActionButtons(
+                primaryLabel: 'NUEVO',
+                secondaryLabel: 'VER TODOS',
+                primaryIcon: Icons.group_add,
+                secondaryIcon: Icons.visibility,
+                primaryEnabled: isTeacher && !isInactive,
+                onPrimary: () => Get.toNamed(AppRoutes.groupCreate,
+                    arguments: {'courseId': courseId, 'lockCourse': true}),
+                onSecondary: () => Get.toNamed(AppRoutes.courseGroups,
+                    arguments: {'courseId': courseId}),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.visibility),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.successGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => Get.toNamed(AppRoutes.courseGroups,
+                      arguments: {'courseId': courseId}),
+                  label: const Text('VER TODOS'),
+                ),
+              ),
             const SizedBox(height: 12),
             if (preview.isEmpty)
               emptyState
@@ -436,65 +689,53 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
                 final cat = cats.firstWhereOrNull((c) => c.id == g.categoryId);
                 final mode = cat?.groupingMethod.toLowerCase() ?? 'manual';
                 final max = cat?.maxMembersPerGroup;
-                final joined = membershipController.myGroupIds.contains(g.id);
                 final count = membershipController.groupMemberCounts[g.id] ?? 0;
-                final subtitle = [
-                  if (cat != null) 'Categoría: ${cat.name}',
-                  'Unión: ${mode == 'random' ? 'aleatoria' : 'manual'}',
-                  if (max != null && max > 0)
-                    'Miembros: $count/$max'
-                  else
-                    'Miembros: $count'
-                ].join(' • ');
-                final canJoin = !isTeacher &&
-                    mode == 'manual' &&
-                    !joined &&
-                    ((max == null || max == 0) || count < max);
+
                 return FadeSlideIn(
                   index: idx,
                   child: SolidListTile(
                     title: g.name,
-                    subtitle: subtitle,
+                    bodyBelowTitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (cat != null)
+                          SizedBox(
+                            width: double.infinity,
+                            child: Pill(
+                              text: 'Categoría: ${cat.name}',
+                              icon: Icons.folder_open,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Pill(
+                                text:
+                                    'Unión: ${mode == 'random' ? 'aleatoria' : 'manual'}',
+                                icon: Icons.how_to_reg),
+                            if (max != null && max > 0)
+                              Pill(
+                                  text: 'Miembros: $count/$max',
+                                  icon: Icons.people)
+                            else
+                              Pill(
+                                  text: 'Miembros: $count',
+                                  icon: Icons.people_outline),
+                          ],
+                        ),
+                      ],
+                    ),
                     leadingIcon: Icons.group_work,
                     goldOutline: false,
                     dense: true,
-                    trailing: canJoin
-                        ? const Text(
-                            'Toca para unirte',
-                            style: TextStyle(
-                              color: AppTheme.successGreen,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : const Icon(Icons.chevron_right, size: 18),
-                    onTap: () async {
-                      if (!canJoin) return;
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Unirse al grupo'),
-                          content: Text(
-                              '¿Deseas unirte al grupo "${g.name}"? Esto te unirá a la categoría "${cat?.name ?? ''}".'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(false),
-                              child: const Text('Cancelar'),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.successGreen,
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: () => Navigator.of(ctx).pop(true),
-                              child: const Text('Unirme'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirmed == true) {
-                        await membershipController.joinGroup(g.id);
-                      }
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () {
+                      Get.toNamed(AppRoutes.groupDetail, arguments: {
+                        'courseId': courseId,
+                        'groupId': g.id,
+                      });
                     },
                   ),
                 );
@@ -524,32 +765,46 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
     );
   }
 
-  Widget _placeholderCard(String text) {
+  Widget _spiderEmptyCard(String text) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 26),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
         border:
-            Border.all(color: Theme.of(context).dividerColor.withOpacity(0.18)),
+            Border.all(color: AppTheme.goldAccent.withOpacity(.35), width: 1),
       ),
-      child: Text(text),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SpiderWebIcon(
+            size: 42,
+            color: AppTheme.goldAccent.withOpacity(.75),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            text,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(.8),
+            ),
+          ),
+        ],
+      ),
     );
   }
-
-  // Removed old tile & button helpers in favor of SolidListTile and DualActionButtons.
 
   String _fmtDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Widget _metaRow(String joinCode, int enrollmentCount,
       {bool loading = false}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 10,
+      runSpacing: 6,
       children: [
         _solidPill(label: 'Código', value: joinCode.isEmpty ? '—' : joinCode),
-        const SizedBox(width: 10),
         _solidPill(
           label: 'Estudiantes',
           value: loading ? 'Cargando…' : '$enrollmentCount',
@@ -589,48 +844,6 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
     );
   }
 
-  Widget _simplePill(String text, {IconData? icon, Color? color}) {
-    // Standardized pill: fixed min height, consistent horizontal padding, single-line ellipsis.
-    final bg = (color ?? AppTheme.goldAccent);
-    const double pillHeight = 28; // unify across all pills
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: pillHeight),
-      child: Container(
-        margin: const EdgeInsets.only(right: 6, bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(pillHeight / 2),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: Colors.grey.shade700),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade800,
-                  height: 1.1,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Vertical stack of pills under title
   Widget _verticalPills(List<Widget> pills) {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
@@ -647,4 +860,53 @@ class _CourseDetailPageState extends State<CourseDetailPage> {
       ),
     );
   }
+}
+
+class _SpiderWebIcon extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _SpiderWebIcon({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _SpiderWebPainter(color),
+      ),
+    );
+  }
+}
+
+class _SpiderWebPainter extends CustomPainter {
+  final Color color;
+  _SpiderWebPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+
+    for (final r in [radius * .3, radius * .55, radius * .8]) {
+      canvas.drawCircle(center, r, paint);
+    }
+
+    const spokes = 6;
+    for (int i = 0; i < spokes; i++) {
+      final angle = (i * (360 / spokes)) * math.pi / 180;
+      final end = Offset(center.dx + radius * .9 * math.cos(angle),
+          center.dy + radius * .9 * math.sin(angle));
+      canvas.drawLine(center, end, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpiderWebPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

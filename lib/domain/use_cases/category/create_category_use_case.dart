@@ -6,7 +6,7 @@ class CreateCategoryParams {
   final String? description;
   final String courseId;
   final String teacherId;
-  final String groupingMethod; // 'manual' | 'random'
+  final String groupingMethod; 
   final int? maxMembersPerGroup;
 
   const CreateCategoryParams({

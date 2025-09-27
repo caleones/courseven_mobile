@@ -1,6 +1,6 @@
 import '../../domain/models/activity.dart';
 
-/// Modelo de datos para Activity con serialización JSON
+
 class ActivityModel extends Activity {
   const ActivityModel({
     required super.id,
@@ -12,7 +12,7 @@ class ActivityModel extends Activity {
     required super.createdAt,
   });
 
-  /// Crear ActivityModel desde JSON
+  
   factory ActivityModel.fromJson(Map<String, dynamic> json) {
     return ActivityModel(
       id: json['_id'] as String,
@@ -27,7 +27,7 @@ class ActivityModel extends Activity {
     );
   }
 
-  /// Convertir ActivityModel a JSON
+  
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -40,7 +40,7 @@ class ActivityModel extends Activity {
     };
   }
 
-  /// Crear copia con cambios
+  
   ActivityModel copyWith({
     String? id,
     String? userId,
@@ -61,7 +61,7 @@ class ActivityModel extends Activity {
     );
   }
 
-  /// Convertir a entidad de dominio
+  
   Activity toEntity() {
     return Activity(
       id: id,

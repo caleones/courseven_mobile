@@ -19,7 +19,7 @@ class ThemeToggleWidget extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Light mode button
+              
               GestureDetector(
                 onTap: () => themeController.setLightTheme(),
                 child: Container(
@@ -40,7 +40,7 @@ class ThemeToggleWidget extends StatelessWidget {
                 ),
               ),
 
-              // Dark mode button
+              
               GestureDetector(
                 onTap: () => themeController.setDarkTheme(),
                 child: Container(

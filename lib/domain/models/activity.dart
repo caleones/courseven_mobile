@@ -1,4 +1,4 @@
-/// Entidad de dominio para representar una actividad del sistema
+
 class Activity {
   final String id;
   final String userId;
@@ -18,10 +18,10 @@ class Activity {
     required this.createdAt,
   });
 
-  /// Actividad tiene entidad asociada
+  
   bool get hasEntity => entityType != null && entityId != null;
 
-  /// Crear copia de la actividad con cambios
+  
   Activity copyWith({
     String? id,
     String? userId,

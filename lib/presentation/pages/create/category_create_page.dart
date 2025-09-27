@@ -32,10 +32,10 @@ class _CategoryCreatePageState extends State<CategoryCreatePage> {
     final args = Get.arguments as Map<String, dynamic>?;
     _selectedCourseId = args?['courseId'] ?? _selectedCourseId;
     _lockCourse = args?['lockCourse'] == true;
-    // Ensure teacher courses are loaded
+    
     courseController.loadMyTeachingCourses();
     if (_selectedCourseId != null && _selectedCourseId!.isNotEmpty) {
-      // pre-warm categories cache for course (not required but harmless)
+      
       categoryController.loadByCourse(_selectedCourseId!);
     }
   }

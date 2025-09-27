@@ -17,21 +17,21 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
-  // Controllers
+  
   final AuthController authController = Get.find<AuthController>();
   final ThemeController themeController = Get.find<ThemeController>();
 
-  // Animation Controllers
+  
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _scaleController;
 
-  // Animations
+  
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
-  // Form Controllers
+  
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -40,20 +40,20 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // UI State
+  
   bool _isLoginMode = true;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _keepLoggedIn = false;
-  // Live validation helpers
-  // availability state is expressed via status + message
+  
+  
   String _emailAvailabilityMessage = '';
   String _usernameAvailabilityMessage = '';
   AvailabilityStatus _emailStatus = AvailabilityStatus.ok;
   AvailabilityStatus _usernameStatus = AvailabilityStatus.ok;
   DateTime _lastEmailChange = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastUsernameChange = DateTime.fromMillisecondsSinceEpoch(0);
-  // debounce checks are time-based; we don't need to keep futures
+  
 
   @override
   void initState() {
@@ -120,7 +120,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       });
       return;
     }
-    // Show pending state immediately while debouncing
+    
     setState(() {
       _emailStatus = AvailabilityStatus.pending;
       _emailAvailabilityMessage = 'Verificando...';
@@ -128,7 +128,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     _lastEmailChange = DateTime.now();
     final scheduledAt = _lastEmailChange;
     await Future.delayed(const Duration(milliseconds: 500));
-    if (scheduledAt != _lastEmailChange) return; // user typed again
+    if (scheduledAt != _lastEmailChange) return; 
 
     final available = await authController.checkEmailAvailable(email);
     if (!mounted) return;
@@ -145,7 +145,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   Future<void> _debouncedCheckUsernameAvailability(String username) async {
     final candidate = username.trim();
-    // Hide hint in login mode, when empty, too short, or invalid pattern
+    
     if (_isLoginMode ||
         candidate.isEmpty ||
         candidate.length < 3 ||
@@ -156,7 +156,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       return;
     }
 
-    // Show pending state immediately while debouncing
+    
     setState(() {
       _usernameStatus = AvailabilityStatus.pending;
       _usernameAvailabilityMessage = 'Verificando...';
@@ -180,7 +180,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     });
   }
 
-  // No direct service access here; UI calls public controller methods above
+  
 
   @override
   void dispose() {
@@ -204,27 +204,27 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(24.0),
           child: Column(
             children: [
-              // Header con toggle de tema
+              
               _buildHeader(),
 
               const SizedBox(height: 40),
 
-              // Logo y título
+              
               _buildLogo(),
 
               const SizedBox(height: 40),
 
-              // Formulario
+              
               _buildForm(),
 
               const SizedBox(height: 30),
 
-              // Botones de acción
+              
               _buildActionButtons(),
 
               const SizedBox(height: 20),
 
-              // Opciones adicionales
+              
               _buildAdditionalOptions(),
             ],
           ),
@@ -292,7 +292,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         key: _formKey,
         child: Column(
           children: [
-            // Email o Username en login; Email en registro
+            
             CustomTextField(
               controller: _emailController,
               labelText: _isLoginMode ? 'Email o nombre de usuario' : 'Email',
@@ -319,9 +319,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
             const SizedBox(height: 16),
 
-            // Campos que solo aparecen en modo registro
+            
             if (!_isLoginMode) ...[
-              // Campo Username
+              
               CustomTextField(
                 controller: _usernameController,
                 labelText: 'Nombre de usuario',
@@ -381,7 +381,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
               const SizedBox(height: 16),
             ],
 
-            // Contraseña
+            
             CustomTextField(
               controller: _passwordController,
               labelText: 'Contraseña',
@@ -403,7 +403,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 if (value == null || value.isEmpty) {
                   return 'Por favor ingresa tu contraseña';
                 }
-                // stricter rules for registration
+                
                 if (!_isLoginMode) {
                   if (value.length < 8) return 'Mínimo 8 caracteres';
                   if (!RegExp(r'[A-Z]').hasMatch(value))
@@ -423,7 +423,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
             const SizedBox(height: 16),
 
-            // Confirmar contraseña (solo en registro)
+            
             if (!_isLoginMode)
               CustomTextField(
                 controller: _confirmPasswordController,
@@ -462,7 +462,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 status: AvailabilityStatus.error,
               ),
 
-            // Mantener sesión iniciada (solo en login)
+            
             if (_isLoginMode) ...[
               const SizedBox(height: 8),
               Row(
@@ -497,7 +497,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       opacity: _fadeAnimation,
       child: Column(
         children: [
-          // Botón principal
+          
           Obx(() => CustomButton(
                 text: _isLoginMode ? 'Ingresar' : 'Regístrate',
                 onPressed: _handleSubmit,
@@ -506,7 +506,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
           const SizedBox(height: 16),
 
-          // Alternar entre login y registro
+          
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -541,7 +541,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       opacity: _fadeAnimation,
       child: Column(
         children: [
-          // Olvidé mi contraseña
+          
           if (_isLoginMode)
             TextButton(
               onPressed: () => Get.to(() => const ForgotPasswordPage()),
@@ -579,12 +579,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         keepLoggedIn: _keepLoggedIn,
       );
 
-      // Solo navegar a Home si es login exitoso
+      
       if (success) {
         Get.offAllNamed(AppRoutes.home);
       }
     } else {
-      // Revalidación autoritativa de disponibilidad antes de enviar
+      
       final email = _emailController.text.trim();
       final username = _usernameController.text.trim();
       final emailOk = await authController.checkEmailAvailable(email);
@@ -630,8 +630,8 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         password: _passwordController.text,
       );
 
-      // En registro no navegas aquí ya que el AuthController gestiona la navegación
-      // El registro exitoso lleva a verificación de email, no a Home directamente
+      
+      
     }
   }
 }

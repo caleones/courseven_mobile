@@ -30,7 +30,7 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, // quita el botón de atrás
+        automaticallyImplyLeading: false, 
         title: Text(
           'Configuración',
           style: TextStyle(
@@ -45,22 +45,22 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // configuración de apariencia
+              
               _buildAppearanceSection(),
               const SizedBox(height: 24),
-              // configuración de notificaciones
+              
               _buildNotificationsSection(),
               const SizedBox(height: 24),
-              // configuración de descarga y reproducción
+              
               _buildDownloadSection(),
               const SizedBox(height: 24),
-              // configuración de idioma y región
+              
               _buildLanguageSection(),
               const SizedBox(height: 24),
-              // configuración de cuenta
+              
               _buildAccountSection(),
               const SizedBox(height: 24),
-              // información de la aplicación
+              
               _buildAppInfoSection(),
             ],
           ),
@@ -94,7 +94,7 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             }).toList(),
             onChanged: (String? newValue) {
-              // TODO: implementas cambio de tamaño de fuente
+              
             },
           ),
         ),

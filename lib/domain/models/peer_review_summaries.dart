@@ -1,6 +1,6 @@
 import 'assessment.dart';
 
-/// Average scores per criterion and overall.
+
 class ScoreAverages {
   final double punctuality;
   final double contributions;
@@ -16,7 +16,7 @@ class ScoreAverages {
   });
 }
 
-/// Per-student received averages for a single activity.
+
 class StudentActivityReviewStats {
   final String studentId;
   final int receivedCount;
@@ -28,11 +28,11 @@ class StudentActivityReviewStats {
   });
 }
 
-/// Group-level stats for an activity (aggregated over its members' received assessments).
+
 class GroupActivityReviewStats {
   final String groupId;
-  final ScoreAverages averages; // group average
-  final List<StudentActivityReviewStats> students; // per student detail
+  final ScoreAverages averages; 
+  final List<StudentActivityReviewStats> students; 
   const GroupActivityReviewStats({
     required this.groupId,
     required this.averages,
@@ -40,7 +40,7 @@ class GroupActivityReviewStats {
   });
 }
 
-/// Summary for one activity including global average and per-group breakdown.
+
 class ActivityPeerReviewSummary {
   final String activityId;
   final ScoreAverages activityAverages;
@@ -52,7 +52,7 @@ class ActivityPeerReviewSummary {
   });
 }
 
-/// Cross-activity stats per student.
+
 class StudentCrossActivityStats {
   final String studentId;
   final int assessmentsReceived;
@@ -64,11 +64,11 @@ class StudentCrossActivityStats {
   });
 }
 
-/// Cross-activity stats per group.
+
 class GroupCrossActivityStats {
   final String groupId;
   final int
-      assessmentsCount; // total assessments whose evaluated student belonged to this group
+      assessmentsCount; 
   final ScoreAverages averages;
   const GroupCrossActivityStats({
     required this.groupId,
@@ -77,7 +77,7 @@ class GroupCrossActivityStats {
   });
 }
 
-/// Course level summary across a set of activities (within same course).
+
 class CoursePeerReviewSummary {
   final List<StudentCrossActivityStats> students;
   final List<GroupCrossActivityStats> groups;
@@ -87,7 +87,7 @@ class CoursePeerReviewSummary {
   });
 }
 
-// Utility functions (pure) to compute averages from assessments.
+
 ScoreAverages computeAverages(List<Assessment> assessments) {
   if (assessments.isEmpty) {
     return const ScoreAverages(

@@ -40,7 +40,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       await _authController.requestPasswordReset(_emailController.text.trim());
 
       if (mounted) {
-        // Navegar a la siguiente pantalla
+        
         Get.to(() => const ResetLinkPage());
       }
     } catch (e) {
@@ -76,7 +76,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header como en Login: back + toggle de tema
+                    
                     Row(
                       children: const [
                         _BackButtonGold(),
@@ -87,7 +87,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 32),
 
-                    // Icono
+                    
                     Icon(
                       Icons.lock_reset,
                       size: 80,
@@ -96,7 +96,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 32),
 
-                    // Título
+                    
                     Text(
                       '¿Olvidaste tu contraseña?',
                       style:
@@ -108,7 +108,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 16),
 
-                    // Descripción
+                    
                     Text(
                       'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -124,7 +124,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 32),
 
-                    // Campo de email
+                    
                     CustomTextField(
                       controller: _emailController,
                       labelText: 'Correo electrónico',
@@ -144,7 +144,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 24),
 
-                    // Botón enviar
+                    
                     CustomButton(
                       text: 'Enviar Enlace',
                       onPressed: _isLoading ? null : _sendResetLink,
@@ -153,7 +153,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 16),
 
-                    // Separador
+                    
                     Row(
                       children: [
                         Expanded(
@@ -189,7 +189,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 16),
 
-                    // Botón para usar enlace existente
+                    
                     OutlinedButton(
                       onPressed: () => Get.to(() => const ResetLinkPage()),
                       style: OutlinedButton.styleFrom(
@@ -210,7 +210,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                     const SizedBox(height: 24),
 
-                    // Link para volver al login
+                    
                     TextButton(
                       onPressed: () => Get.back(),
                       child: const Text(

@@ -3,6 +3,8 @@ import '../../domain/models/membership.dart';
 import '../../domain/use_cases/membership/join_group_use_case.dart';
 import 'auth_controller.dart';
 import '../../domain/repositories/membership_repository.dart';
+import '../../domain/repositories/group_repository.dart';
+import '../../core/utils/app_event_bus.dart';
 
 class MembershipController extends GetxController {
   final JoinGroupUseCase _joinGroupUseCase;
@@ -13,9 +15,9 @@ class MembershipController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
   final RxSet<String> myGroupIds =
-      <String>{}.obs; // cache of groupIds user joined
+      <String>{}.obs; 
   final RxMap<String, int> groupMemberCounts =
-      <String, int>{}.obs; // groupId -> count
+      <String, int>{}.obs; 
 
   AuthController get _auth => Get.find<AuthController>();
   String? get currentUserId => _auth.currentUser?.id;
@@ -25,8 +27,8 @@ class MembershipController extends GetxController {
     if (userId == null || userId.isEmpty || groupIds.isEmpty) return;
     try {
       isLoading.value = true;
-      // Estrategia eficiente y robusta: cargo todas mis membresías una vez
-      // y marco cuáles coinciden con los groupIds dados.
+      
+      
       final myMemberships =
           await _membershipRepository.getMembershipsByUserId(userId);
       final joinedIds = myMemberships.map((m) => m.groupId).toSet();
@@ -45,11 +47,12 @@ class MembershipController extends GetxController {
     if (groupIds.isEmpty) return;
     try {
       isLoading.value = true;
-      // fetch counts sequentially to avoid overwhelming backend
+      
       for (final gid in groupIds) {
         final count = await _membershipRepository.getMembershipsByGroupId(gid);
         groupMemberCounts[gid] = count.length;
       }
+      groupMemberCounts.refresh();
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {
@@ -64,6 +67,7 @@ class MembershipController extends GetxController {
     try {
       final list = await _membershipRepository.getMembershipsByGroupId(groupId);
       groupMemberCounts[groupId] = list.length;
+      groupMemberCounts.refresh();
       update();
       return list.length;
     } catch (_) {
@@ -82,6 +86,18 @@ class MembershipController extends GetxController {
       final m = await _joinGroupUseCase(
           JoinGroupParams(userId: userId, groupId: groupId));
       myGroupIds.add(groupId);
+
+      
+      try {
+        final groupRepo = Get.find<GroupRepository>();
+        final g = await groupRepo.getGroupById(groupId);
+        if (Get.isRegistered<AppEventBus>() && g != null) {
+          Get.find<AppEventBus>()
+              .publish(MembershipJoinedEvent(groupId, g.courseId));
+        }
+        
+        await getMemberCount(groupId);
+      } catch (_) {}
       return m;
     } catch (e) {
       errorMessage.value = e.toString();

@@ -31,37 +31,42 @@ import '../../presentation/controllers/membership_controller.dart';
 import '../../domain/use_cases/membership/join_group_use_case.dart';
 import '../../presentation/controllers/activity_controller.dart';
 import '../../domain/use_cases/activity/get_course_activities_for_student_use_case.dart';
+import '../utils/refresh_manager.dart';
+import '../utils/app_event_bus.dart';
+import '../../domain/repositories/assessment_repository.dart';
+import '../../data/repositories/assessment_repository_impl.dart';
+import '../../presentation/controllers/peer_review_controller.dart';
 
-// configuro todas las dependencias de la app al inicio
+
 class DependencyInjection {
-  // método principal que llamo en main.dart
+  
   static Future<void> init() async {
-    // configuro el cliente HTTP
+    
     _setupHttpClient();
 
-    // configuro los servicios
+    
     _setupServices();
 
-    // configuro los controladores
+    
     _setupControllers();
   }
 
-  // configuro Dio para las peticiones HTTP
+  
   static void _setupHttpClient() {
     final dio = Dio();
 
-    // timeouts para que no se cuelgue
+    
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);
     dio.options.sendTimeout = const Duration(seconds: 30);
 
-    // headers que siempre mando
+    
     dio.options.headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
 
-    // en desarrollo muestro los logs de las peticiones
+    
     if (kDebugMode) {
       dio.interceptors.add(
         LogInterceptor(
@@ -74,34 +79,38 @@ class DependencyInjection {
       );
     }
 
-    // registro Dio como singleton para usarlo en toda la app
+    
     Get.put<Dio>(dio, permanent: true);
   }
 
-  // configuro los servicios que manejo
+  
   static void _setupServices() {
-    // servicio principal para comunicarme con ROBLE
+    
     Get.put<RobleService>(
       RobleService(),
       permanent: true,
     );
+
+    
+    Get.put<RefreshManager>(RefreshManager(), permanent: true);
+    Get.put<AppEventBus>(AppEventBus(), permanent: true);
   }
 
-  // configuro los controladores principales
+  
   static void _setupControllers() {
-    // controlador de tema (lo inicio primero)
+    
     Get.put<ThemeController>(
       ThemeController(),
       permanent: true,
     );
 
-    // controlador de autenticación
+    
     Get.put<AuthController>(
       AuthController(Get.find<RobleService>()),
       permanent: true,
     );
 
-    // Repositorios
+    
     Get.lazyPut<CourseRepository>(
       () => CourseRepositoryImpl(
         Get.find<RobleService>(),
@@ -158,7 +167,16 @@ class DependencyInjection {
       fenix: true,
     );
 
-    // Controlador de cursos
+    
+    Get.lazyPut<AssessmentRepository>(
+      () => AssessmentRepositoryImpl(
+        Get.find<RobleService>(),
+        getAccessToken: () => Get.find<AuthController>().getAccessToken(),
+      ),
+      fenix: true,
+    );
+
+    
     Get.lazyPut<CourseController>(
       () => CourseController(
         CreateCourseUseCase(Get.find<CourseRepository>()),
@@ -167,7 +185,7 @@ class DependencyInjection {
       fenix: true,
     );
 
-    // Controlador de categorías
+    
     Get.lazyPut<CategoryController>(
       () => CategoryController(
         Get.find<CategoryRepository>(),
@@ -176,7 +194,7 @@ class DependencyInjection {
       fenix: true,
     );
 
-    // Controlador de grupos
+    
     Get.lazyPut<GroupController>(
       () => GroupController(
         Get.find<GroupRepository>(),
@@ -185,7 +203,7 @@ class DependencyInjection {
       fenix: true,
     );
 
-    // Controlador de inscripciones
+    
     Get.lazyPut<EnrollmentController>(
       () => EnrollmentController(
         EnrollToCourseUseCase(
@@ -199,7 +217,7 @@ class DependencyInjection {
       fenix: true,
     );
 
-    // Controlador de membresías
+    
     Get.lazyPut<MembershipController>(
       () => MembershipController(
         JoinGroupUseCase(
@@ -212,7 +230,7 @@ class DependencyInjection {
       fenix: true,
     );
 
-    // Controlador de actividades
+    
     Get.lazyPut<ActivityController>(
       () => ActivityController(
         GetCourseActivitiesForStudentUseCase(
@@ -226,9 +244,19 @@ class DependencyInjection {
       ),
       fenix: true,
     );
+
+    
+    Get.lazyPut<PeerReviewController>(
+      () => PeerReviewController(
+        Get.find<AssessmentRepository>(),
+        Get.find<MembershipRepository>(),
+        Get.find<GroupRepository>(),
+      ),
+      fenix: true,
+    );
   }
 
-  // limpio todas las dependencias cuando cierro la app
+  
   static void dispose() {
     Get.deleteAll();
   }

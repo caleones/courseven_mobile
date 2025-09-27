@@ -12,19 +12,19 @@ class AuthController extends GetxController {
   final RobleService _authService;
   static const _secureStorage = FlutterSecureStorage();
 
-  // Variables reactivas que manejo con GetX
+  
   final _isLoggedIn = false.obs;
   final _isLoading = false.obs;
   final _isInitialized = false
-      .obs; // necesito esto para saber cuando termina de revisar si hay sesión guardada
+      .obs; 
   final _currentUser = Rxn<User>();
   final _errorMessage = ''.obs;
-  final _selectedDatabase = 'uninorte'.obs; // por defecto uso uninorte
+  final _selectedDatabase = 'uninorte'.obs; 
 
-  // Timer para renovación automática de tokens
+  
   Timer? _tokenRefreshTimer;
 
-  // estos getters me facilitan acceder a los valores sin .value
+  
   bool get isLoggedIn => _isLoggedIn.value;
   bool get isLoading => _isLoading.value;
   bool get isInitialized => _isInitialized.value;
@@ -32,7 +32,7 @@ class AuthController extends GetxController {
   String get errorMessage => _errorMessage.value;
   String get selectedDatabase => _selectedDatabase.value;
 
-  // keys que uso para guardar cosas en el storage del teléfono
+  
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _databaseKey = 'selected_database';
@@ -45,7 +45,7 @@ class AuthController extends GetxController {
     _loadStoredSession();
   }
 
-  // Verificas si ya existe una sesión guardada al abrir la app
+  
   Future<void> _loadStoredSession() async {
     try {
       debugPrint('[AUTH_CONTROLLER] Iniciando carga de sesión almacenada');
@@ -65,7 +65,7 @@ class AuthController extends GetxController {
         _selectedDatabase.value = storedDatabase;
 
         try {
-          // Verificas que el token siga siendo válido en el servidor
+          
           final tokenCheck =
               await _authService.verifyToken(accessToken: accessToken);
           final valid =
@@ -73,13 +73,13 @@ class AuthController extends GetxController {
           if (valid) {
             final storedEmail = await _secureStorage.read(key: 'user_email');
             if (storedEmail != null && storedEmail.isNotEmpty) {
-              // Buscas los datos del usuario en la base de datos
+              
               final dbUser = await _authService.getUserFromDatabase(
                 accessToken: accessToken,
                 email: storedEmail,
               );
               if (dbUser != null) {
-                // Creas el objeto User con la info de la DB
+                
                 final user = User(
                   id: dbUser['_id']?.toString() ?? '',
                   studentId: dbUser['student_id']?.toString() ?? '',
@@ -94,7 +94,7 @@ class AuthController extends GetxController {
                 _currentUser.value = user;
                 _isLoggedIn.value = true;
 
-                // Iniciar timer de renovación automática
+                
                 _startTokenRefreshTimer();
 
                 debugPrint(
@@ -133,27 +133,27 @@ class AuthController extends GetxController {
       debugPrint('[AUTH_CONTROLLER] Error cargando sesión almacenada: $e');
       await _clearStoredSession();
     } finally {
-      // IMPORTANTE: siempre marcas como inicializado para que la UI sepa que ya terminaste
+      
       debugPrint('[AUTH_CONTROLLER] Marcando controlador como inicializado');
       _isInitialized.value = true;
-      update(); // Le avisas a GetBuilder que cambió algo
+      update(); 
     }
   }
 
-  // borro toda la info guardada en el teléfono
+  
   Future<void> _clearStoredSession() async {
     await _secureStorage.deleteAll();
     _currentUser.value = null;
     _isLoggedIn.value = false;
   }
 
-  // cambio la universidad seleccionada
+  
   void setDatabase(String database) {
     _selectedDatabase.value = database;
     _errorMessage.value = '';
   }
 
-  // login principal - acepta email o username (nueva implementacion)
+  
   Future<bool> login({
     required String identifier,
     required String password,
@@ -176,7 +176,7 @@ class AuthController extends GetxController {
             '[AUTH_CONTROLLER] Timestamp: ${DateTime.now().toIso8601String()}');
       }
 
-      // Usas el método de login que valida contra la base de datos
+      
       final response = await _authService.login(
         email: cleanIdentifier,
         password: password,
@@ -194,7 +194,7 @@ class AuthController extends GetxController {
       if (response['success'] == true && response['data'] != null) {
         debugPrint('[AUTH_CONTROLLER] Procesando datos de usuario');
 
-        // Construyes el objeto User con los datos de la base de datos
+        
         final userData = response['data'];
         if (kDebugMode) {
           debugPrint('[AUTH_CONTROLLER] Datos de usuario recibidos:');
@@ -225,12 +225,12 @@ class AuthController extends GetxController {
         _currentUser.value = user;
         _isLoggedIn.value = true;
 
-        // Iniciar timer de renovación automática
+        
         _startTokenRefreshTimer();
 
         print('AuthController: Guardando tokens en storage...');
 
-        // guardo el token personalizado
+        
         final accessToken = response['access_token'] ??
             response['token'] ??
             response['accessToken'];
@@ -239,7 +239,7 @@ class AuthController extends GetxController {
           print('AuthController: AccessToken guardado');
         }
 
-        // guardo refresh token
+        
         final refreshToken =
             response['refresh_token'] ?? response['refreshToken'];
         if (refreshToken != null) {
@@ -247,7 +247,7 @@ class AuthController extends GetxController {
           print('AuthController: RefreshToken guardado');
         }
 
-        // guardo preferencias de sesion y datos del usuario
+        
         await _secureStorage.write(
             key: 'keep_logged_in', value: keepLoggedIn.toString());
         await _secureStorage.write(key: 'user_email', value: user.email);
@@ -258,7 +258,7 @@ class AuthController extends GetxController {
         print('AuthController: Datos de sesión guardados exitosamente');
 
         _setLoading(false);
-        update(); // aviso a la UI que cambió algo
+        update(); 
 
         print(
             'AuthController: Login completado exitosamente para: ${user.email}');
@@ -317,7 +317,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // registro inicial - solo manda el email para verificación
+  
   Future<bool> register({
     required String email,
     required String password,
@@ -338,7 +338,7 @@ class AuthController extends GetxController {
 
       final fullName = '$firstName $lastName'.trim();
 
-      // limpio el email por si tiene espacios o mayúsculas
+      
       final normalizedEmail = email.trim().toLowerCase();
       print('Email normalizado: "$normalizedEmail"');
 
@@ -355,9 +355,9 @@ class AuthController extends GetxController {
 
         print('Navegando a verificación con email: "$normalizedEmail"');
 
-        // voy a la pantalla donde pone el código de verificación
+        
         Get.toNamed('/email-verification', arguments: {
-          'email': normalizedEmail, // Usar email normalizado
+          'email': normalizedEmail, 
           'password': password,
           'firstName': firstName,
           'lastName': lastName,
@@ -397,8 +397,8 @@ class AuthController extends GetxController {
     }
   }
 
-  // Verifica el email con el código y completa el registro del usuario
-  // Verifica el email, hace login automático y crea el usuario en la DB
+  
+  
   Future<bool> verifyEmailAndComplete({
     required String email,
     required String code,
@@ -415,7 +415,7 @@ class AuthController extends GetxController {
       print('Código recibido: "$code"');
       print('Timestamp verificación: ${DateTime.now().toIso8601String()}');
 
-      // normalizo el email igual que en el registro
+      
       final normalizedEmail = email.trim().toLowerCase();
       print('Email normalizado para verificación: "$normalizedEmail"');
 
@@ -426,13 +426,13 @@ class AuthController extends GetxController {
 
       print('Response completa de verify-email: $response');
 
-      // ROBLE ya creó el usuario cuando verificó el email
-      // ahora hago login automático
+      
+      
       if (response['success'] == true) {
         print('AuthController: Email verificado exitosamente por ROBLE');
         print('Iniciando proceso de login automático...');
 
-        // hago login con auth de ROBLE solo para obtener token temporal
+        
         print('Paso 1: Obteniendo token temporal del auth de ROBLE...');
 
         try {
@@ -450,7 +450,7 @@ class AuthController extends GetxController {
             final tempAccessToken = authResponse['accessToken'];
             final authUserData = authResponse['user'];
 
-            // paso 2: crear el usuario en mi propia base de datos
+            
             print('Paso 2: Creando usuario en tabla users...');
             try {
               final userCreationResponse =
@@ -467,7 +467,7 @@ class AuthController extends GetxController {
             } catch (userCreationError) {
               print('Error creando usuario en database: $userCreationError');
 
-              // reviso si el usuario ya existía (por si fue un segundo intento)
+              
               final existingUser = await _authService.getUserFromDatabase(
                 accessToken: tempAccessToken,
                 email: normalizedEmail,
@@ -480,7 +480,7 @@ class AuthController extends GetxController {
               }
             }
 
-            // paso 3: ahora hago login con la nueva logica (validando contra tabla users)
+            
             print(
                 'Paso 3: Haciendo login con nueva lógica contra tabla users...');
             final finalLoginResponse = await _authService.login(
@@ -492,10 +492,10 @@ class AuthController extends GetxController {
 
             if (finalLoginResponse['success'] == true &&
                 finalLoginResponse['data'] != null) {
-              // ahora tengo los datos reales de la tabla users
+              
               final userDataFromTable = finalLoginResponse['data'];
 
-              // creo el objeto User con los datos de la tabla users
+              
               final user = User(
                 id: userDataFromTable['_id'] ?? '',
                 studentId: userDataFromTable['student_id'] ?? '',
@@ -515,10 +515,10 @@ class AuthController extends GetxController {
               _currentUser.value = user;
               _isLoggedIn.value = true;
 
-              // Iniciar timer de renovación automática
+              
               _startTokenRefreshTimer();
 
-              // guardo los tokens del login final (no los temporales del auth)
+              
               final finalAccessToken = finalLoginResponse['accessToken'];
               final finalRefreshToken = finalLoginResponse['refreshToken'];
 
@@ -536,7 +536,7 @@ class AuthController extends GetxController {
                   key: _databaseKey, value: _selectedDatabase.value);
               print('Database key guardada');
 
-              // por defecto mantengo la sesión iniciada después del registro
+              
               await _secureStorage.write(key: 'keep_logged_in', value: 'true');
               await _secureStorage.write(key: 'user_email', value: user.email);
               print('Preferencias de sesión persistente guardadas');
@@ -555,7 +555,7 @@ class AuthController extends GetxController {
                 snackPosition: SnackPosition.TOP,
               );
 
-              // voy directo al home
+              
               Get.offAllNamed('/home');
               return true;
             } else {
@@ -570,7 +570,7 @@ class AuthController extends GetxController {
                 snackPosition: SnackPosition.TOP,
               );
 
-              // regreso al login
+              
               Get.offAllNamed('/login');
               return true;
             }
@@ -601,7 +601,7 @@ class AuthController extends GetxController {
             snackPosition: SnackPosition.TOP,
           );
 
-          // regreso al login
+          
           Get.offAllNamed('/login');
           return true;
         }
@@ -625,7 +625,7 @@ class AuthController extends GetxController {
       String errorMessage =
           'No se pudo verificar el email. Inténtalo de nuevo.';
 
-      // Manejar errores específicos
+      
       if (e.toString().contains('expirado')) {
         errorMessage =
             'El código ha expirado. Presiona "Reenviar" para obtener uno nuevo.';
@@ -651,7 +651,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // recuperar contraseña - todavía no implementado
+  
   Future<bool> forgotPassword({required String email}) async {
     if (_isLoading.value) return false;
 
@@ -659,11 +659,11 @@ class AuthController extends GetxController {
     _errorMessage.value = '';
 
     try {
-      // TODO: cuando ROBLE tenga endpoint de forgot password lo conecto acá
+      
       print(
           'AuthController: Solicitud de recuperación de contraseña para: $email');
 
-      // simulo que tarda un poco
+      
       await Future.delayed(const Duration(seconds: 2));
 
       _setLoading(false);
@@ -694,33 +694,33 @@ class AuthController extends GetxController {
     }
   }
 
-  // Cierra la sesión y limpia todos los datos almacenados
+  
   Future<void> logout() async {
     _setLoading(true);
 
     try {
-      // TODO: cuando ROBLE tenga endpoint de logout lo conectas acá
+      
       debugPrint('[AUTH_CONTROLLER] Cerrando sesión');
 
-      // Simulas delay
+      
       await Future.delayed(const Duration(seconds: 1));
     } catch (e) {
       debugPrint('[AUTH_CONTROLLER] Error durante logout: $e');
     } finally {
-      // Limpias todo local sin importar si el server respondió
+      
       await _clearStoredSession();
 
-      // Detener timer de renovación automática
+      
       _stopTokenRefreshTimer();
 
       _setLoading(false);
       update();
 
-      // Navego de inmediato al login
+      
       try {
         Get.offAllNamed(AppRoutes.login);
       } catch (_) {
-        // fallback por si no están registradas las rutas con nombre
+        
         Get.offAll(() => const LoginPage());
       }
 
@@ -734,10 +734,10 @@ class AuthController extends GetxController {
     }
   }
 
-  // entrar como invitado sin autenticación
+  
   void loginAsGuest() {
     _currentUser.value = null;
-    _isLoggedIn.value = true; // permito navegar sin auth
+    _isLoggedIn.value = true; 
 
     Get.snackbar(
       'Modo invitado',
@@ -748,17 +748,17 @@ class AuthController extends GetxController {
     );
   }
 
-  // cambio el estado de loading
+  
   void _setLoading(bool loading) {
     _isLoading.value = loading;
   }
 
-  // limpio mensajes de error
+  
   void clearError() {
     _errorMessage.value = '';
   }
 
-  // Provee el access token almacenado (para capas inferiores que lo requieran)
+  
   Future<String?> getAccessToken() async {
     try {
       return await _secureStorage.read(key: _accessTokenKey);
@@ -767,7 +767,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // Renueva el access token usando el refresh token almacenado
+  
   Future<bool> refreshAccessToken() async {
     try {
       final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
@@ -778,11 +778,11 @@ class AuthController extends GetxController {
 
       final result = await _authService.refreshAccessToken(refreshToken);
       if (result != null) {
-        // Guarda el nuevo access token
+        
         await _secureStorage.write(
             key: _accessTokenKey, value: result['accessToken']);
 
-        // Guarda el nuevo refresh token si viene uno
+        
         if (result['refreshToken'] != null) {
           await _secureStorage.write(
               key: _refreshTokenKey, value: result['refreshToken']);
@@ -800,13 +800,13 @@ class AuthController extends GetxController {
     }
   }
 
-  // Intenta manejar un error 401 renovando el token automáticamente
+  
   Future<bool> handle401Error() async {
     debugPrint('[AUTH] Manejando error 401, intentando renovar token...');
     final success = await refreshAccessToken();
 
     if (!success) {
-      // Si no se puede renovar el token, cerrar sesión
+      
       debugPrint('[AUTH] No se pudo renovar el token, cerrando sesión');
       await logout();
     }
@@ -814,9 +814,9 @@ class AuthController extends GetxController {
     return success;
   }
 
-  // Inicia el timer automático para renovar el token cada 12 minutos
+  
   void _startTokenRefreshTimer() {
-    _stopTokenRefreshTimer(); // Asegurar que no haya timers duplicados
+    _stopTokenRefreshTimer(); 
 
     _tokenRefreshTimer =
         Timer.periodic(const Duration(minutes: 12), (timer) async {
@@ -834,7 +834,7 @@ class AuthController extends GetxController {
         '[AUTH] Timer de renovación automática iniciado (cada 12 minutos)');
   }
 
-  // Detiene el timer automático de renovación
+  
   void _stopTokenRefreshTimer() {
     _tokenRefreshTimer?.cancel();
     _tokenRefreshTimer = null;
@@ -846,7 +846,7 @@ class AuthController extends GetxController {
     super.onClose();
   }
 
-  // universidades que manejo
+  
   List<String> getAvailableDatabases() {
     return [
       'uninorte',
@@ -858,7 +858,7 @@ class AuthController extends GetxController {
     ];
   }
 
-  // nombres bonitos para mostrar en la UI
+  
   String getDatabaseDisplayName(String dbName) {
     switch (dbName.toLowerCase()) {
       case 'uninorte':
@@ -878,7 +878,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // Funciones para gestión de restablecimiento de contraseña
+  
   Future<bool> requestPasswordReset(String email) async {
     try {
       _isLoading.value = true;
@@ -968,7 +968,7 @@ class AuthController extends GetxController {
     }
   }
 
-  // ===== Disponibilidad (expuestos para la UI) =====
+  
   Future<bool> checkEmailAvailable(String email) async {
     try {
       final res = await _authService.isEmailAvailable(email);
@@ -976,7 +976,7 @@ class AuthController extends GetxController {
       return res;
     } catch (e) {
       print('AuthController.checkEmailAvailable error: $e');
-      return false; // fail-closed
+      return false; 
     }
   }
 

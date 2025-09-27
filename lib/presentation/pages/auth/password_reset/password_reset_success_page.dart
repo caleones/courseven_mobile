@@ -19,7 +19,7 @@ class PasswordResetSuccessPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Header: back + toggle
+                
                 Row(
                   children: const [
                     _BackButtonGold(),
@@ -30,13 +30,13 @@ class PasswordResetSuccessPage extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // Main content centered
+                
                 Expanded(
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Success icon
+                        
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
@@ -52,7 +52,7 @@ class PasswordResetSuccessPage extends StatelessWidget {
 
                         const SizedBox(height: 24),
 
-                        // Title
+                        
                         Text(
                           '¡Contraseña cambiada!',
                           style: Theme.of(context)
@@ -64,7 +64,7 @@ class PasswordResetSuccessPage extends StatelessWidget {
 
                         const SizedBox(height: 12),
 
-                        // Description
+                        
                         Text(
                           'Tu contraseña ha sido actualizada exitosamente. Ya puedes iniciar sesión con tu nueva contraseña.',
                           style:
@@ -81,7 +81,7 @@ class PasswordResetSuccessPage extends StatelessWidget {
 
                         const SizedBox(height: 32),
 
-                        // Primary button
+                        
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -108,7 +108,7 @@ class PasswordResetSuccessPage extends StatelessWidget {
 
                         const SizedBox(height: 24),
 
-                        // Security tip box
+                        
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(

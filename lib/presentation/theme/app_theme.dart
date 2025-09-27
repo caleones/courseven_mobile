@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Premium color palette - Black, White, Gold
+  
   static const Color goldAccent = Color(0xFFFFD700);
   static const Color darkGold = Color(0xFFB8860B);
   static const Color lightGold = Color(0xFFFFF8DC);
@@ -10,12 +10,12 @@ class AppTheme {
   static const Color softGrey = Color(0xFFF5F5F5);
   static const Color darkGrey = Color(0xFF242424);
   static const Color mediumGrey = Color(0xFF757575);
-  // Success accent (placeholder until full token design)
-  static const Color successGreen = Color(0xFF2E7D32); // Material Green 800
-  // Danger accent for inactive states
-  static const Color dangerRed = Color(0xFFD32F2F); // Material Red 700
+  
+  static const Color successGreen = Color(0xFF2E7D32); 
+  
+  static const Color dangerRed = Color(0xFFD32F2F); 
 
-  // Light theme - White base with gold accents
+  
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -118,7 +118,7 @@ class AppTheme {
     );
   }
 
-  // Dark theme - Black base with gold accents
+  
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,

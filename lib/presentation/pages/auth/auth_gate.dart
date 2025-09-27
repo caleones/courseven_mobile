@@ -4,8 +4,8 @@ import '../../controllers/auth_controller.dart';
 import '../auth/login_page.dart';
 import '../home/home_page.dart';
 
-// decide si mostrar login o ir directo al home
-// depende de si el usuario ya tiene sesión guardada
+
+
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
@@ -18,7 +18,7 @@ class AuthGate extends StatelessWidget {
         print(
             'AuthGate build - isInitialized: ${authController.isInitialized}, isLoggedIn: ${authController.isLoggedIn}');
 
-        // mientras reviso si hay sesión muestro loading
+        
         if (!authController.isInitialized) {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -26,7 +26,7 @@ class AuthGate extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // logo de la app
+                  
                   Image.asset(
                     'assets/images/courseven_logo.png',
                     width: 100,
@@ -35,7 +35,7 @@ class AuthGate extends StatelessWidget {
                   ),
                   const SizedBox(height: 30),
 
-                  // indicador de carga
+                  
                   CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(
                       Theme.of(context).primaryColor,
@@ -43,7 +43,7 @@ class AuthGate extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // texto de carga
+                  
                   Text(
                     'Cargando...',
                     style: Theme.of(context).textTheme.bodyLarge,
@@ -54,13 +54,13 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        // si ya está logueado voy al home
+        
         if (authController.isLoggedIn) {
           print('Navegando a HomePage');
           return const HomePage();
         }
 
-        // si no está logueado muestro el login
+        
         print('Mostrando LoginPage');
         return const LoginPage();
       },

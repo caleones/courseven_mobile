@@ -70,7 +70,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
     return rows.map(_fromMap).toList(growable: false);
   }
 
-  // ==== Métodos no requeridos por ahora ====
+  
   @override
   Future<bool> deleteCategory(String categoryId) async {
     final token = await _requireToken();
@@ -112,7 +112,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
 
   @override
   Future<bool> isCategoryNameAvailable(String name) async {
-    // naive: available if no exact name
+    
     final token = await _requireToken();
     final rows = await _service.readCategories(
       accessToken: token,
@@ -123,7 +123,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
 
   @override
   Future<List<Category>> searchCategoriesByName(String name) async {
-    // backend exact match; could be LIKE if supported
+    
     final token = await _requireToken();
     final rows = await _service.readCategories(
       accessToken: token,
@@ -156,7 +156,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
     if (updated.isNotEmpty) {
       return _fromMap(updated.first);
     }
-    // fallback: re-read
+    
     final again = await getCategoryById(category.id);
     if (again == null) throw Exception('No se pudo leer categoría actualizada');
     return again;

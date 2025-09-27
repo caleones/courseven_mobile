@@ -16,7 +16,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
     with TickerProviderStateMixin {
   final AuthController authController = Get.find<AuthController>();
 
-  // Controllers para los 6 cuadros del código
+  
   final List<TextEditingController> _codeControllers = List.generate(
     6,
     (index) => TextEditingController(),
@@ -27,9 +27,9 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
     (index) => FocusNode(),
   );
 
-  // Timer y animaciones
+  
   late Timer _timer;
-  int _timeRemaining = 300; // 5 minutos en segundos
+  int _timeRemaining = 300; 
   late AnimationController _fadeController;
   late AnimationController _pulseController;
   late Animation<double> _fadeAnimation;
@@ -38,7 +38,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
   bool _isVerifying = false;
   bool _canResend = false;
 
-  // Get arguments from route
+  
   late final String email;
   late final String password;
   late final String firstName;
@@ -49,7 +49,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
   void initState() {
     super.initState();
 
-    // Extract arguments from Get.arguments
+    
     final Map<String, dynamic> args = Get.arguments ?? {};
     email = args['email'] ?? '';
     password = args['password'] ?? '';
@@ -103,7 +103,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
             _showTimeExpiredDialog();
           }
 
-          // Permitir reenvío después de 30 segundos
+          
           if (_timeRemaining == 270) {
             _canResend = true;
           }
@@ -121,8 +121,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
         actions: [
           ElevatedButton(
             onPressed: () {
-              Get.back(); // Cerrar diálogo
-              Get.back(); // Volver al registro
+              Get.back(); 
+              Get.back(); 
             },
             child: const Text('Volver al registro'),
           ),
@@ -143,7 +143,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
       _focusNodes[index + 1].requestFocus();
     }
 
-    // Verificas si todos los campos están completados para proceder automáticamente
+    
     if (value.isNotEmpty && index == 5) {
       _verifyCode();
     }
@@ -179,14 +179,14 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
       );
 
       if (success) {
-        // Navegación exitosa será manejada por el AuthController
+        
         _timer.cancel();
       } else {
         setState(() {
           _isVerifying = false;
         });
 
-        // Limpiar campos si el código es incorrecto
+        
         for (var controller in _codeControllers) {
           controller.clear();
         }
@@ -197,7 +197,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
         _isVerifying = false;
       });
 
-      // Limpiar campos en caso de error
+      
       for (var controller in _codeControllers) {
         controller.clear();
       }
@@ -210,17 +210,17 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
     setState(() {
       _canResend = false;
-      _timeRemaining = 300; // Reiniciar timer a 5 minutos
+      _timeRemaining = 300; 
     });
 
-    // Limpiar campos actuales
+    
     for (var controller in _codeControllers) {
       controller.clear();
     }
-    _focusNodes[0].requestFocus(); // Enfocar primer campo
+    _focusNodes[0].requestFocus(); 
 
     try {
-      // Reenviar código (llamar al registro nuevamente)
+      
       await authController.register(
         email: email,
         password: password,
@@ -278,7 +278,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
               opacity: _fadeAnimation,
               child: Column(
                 children: [
-                  // Header con botón de volver
+                  
                   Row(
                     children: [
                       IconButton(
@@ -299,13 +299,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 48), // Para balancear el botón
+                      const SizedBox(width: 48), 
                     ],
                   ),
 
                   const SizedBox(height: 40),
 
-                  // Icono de email animado
+                  
                   ScaleTransition(
                     scale: _pulseAnimation,
                     child: Container(
@@ -329,7 +329,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
                   const SizedBox(height: 32),
 
-                  // Título y descripción
+                  
                   const Text(
                     'Revisa tu correo',
                     style: TextStyle(
@@ -375,7 +375,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
                   const SizedBox(height: 48),
 
-                  // Campos de código (6 cuadritos)
+                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(6, (index) {
@@ -392,7 +392,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                             width: 2,
                           ),
                         ),
-                        alignment: Alignment.center, // Centrar contenido
+                        alignment: Alignment.center, 
                         child: TextField(
                           controller: _codeControllers[index],
                           focusNode: _focusNodes[index],
@@ -402,7 +402,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                             color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            height: 1.0, // Ajustar altura de línea
+                            height: 1.0, 
                           ),
                           keyboardType: TextInputType.number,
                           maxLength: 1,
@@ -410,15 +410,15 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
                             border: InputBorder.none,
                             counterText: '',
                             contentPadding:
-                                EdgeInsets.zero, // Eliminar padding interno
-                            isDense: true, // Hacer el campo más compacto
+                                EdgeInsets.zero, 
+                            isDense: true, 
                           ),
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           onChanged: (value) => _onCodeChanged(index, value),
                           onTap: () {
-                            // Si el campo está vacío y no es el primero, ir al primer campo vacío
+                            
                             if (_codeControllers[index].text.isEmpty &&
                                 index > 0) {
                               for (int i = 0; i < index; i++) {
@@ -436,7 +436,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
                   const SizedBox(height: 32),
 
-                  // Timer
+                  
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -458,7 +458,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
                   const Spacer(),
 
-                  // Botón de verificar
+                  
                   if (_isVerifying)
                     const Center(
                       child: CircularProgressIndicator(
@@ -492,7 +492,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage>
 
                   const SizedBox(height: 16),
 
-                  // Botón de reenviar
+                  
                   TextButton(
                     onPressed: _canResend ? _resendCode : null,
                     child: Text(

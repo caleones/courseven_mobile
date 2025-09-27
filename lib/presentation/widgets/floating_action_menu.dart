@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-// Clean, minimal expandable floating action menu used across the app.
+
 class FloatingActionMenu extends StatefulWidget {
   const FloatingActionMenu({super.key});
 
@@ -47,7 +47,7 @@ class _FloatingActionMenuState extends State<FloatingActionMenu>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Expanded actions
+        
         SizeTransition(
           sizeFactor: _scale,
           axisAlignment: -1.0,
@@ -76,7 +76,7 @@ class _FloatingActionMenuState extends State<FloatingActionMenu>
           ),
         ),
 
-        // Main FAB
+        
         FloatingActionButton(
           onPressed: _toggleMenu,
           backgroundColor: AppTheme.goldAccent,

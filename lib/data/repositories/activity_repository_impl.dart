@@ -46,7 +46,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
 
   Future<List<CourseActivity>> getActivitiesByCourse(String courseId) async {
     final token = await _requireToken();
-    // DEBUG: quitar filtro is_active para asegurar visibilidad mientras se prueba peer review
+    
     final rows = await _service
         .readActivities(accessToken: token, query: {'course_id': courseId});
     return rows.map(_fromMap).toList(growable: false);
@@ -82,7 +82,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
     if (activity.id.isEmpty) {
       throw Exception('updateActivity requiere id');
     }
-    // Build updates map from entity
+    
     final updates = <String, dynamic>{
       'title': activity.title,
       'description': activity.description,
@@ -100,7 +100,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
       id: activity.id,
       updates: updates,
     );
-    // Some backends return updated records; if not, read it again
+    
     final updated = (res['updated'] as List?)?.cast<Map<String, dynamic>>() ??
         (res['data'] is List
             ? (res['data'] as List).cast<Map<String, dynamic>>()
@@ -108,7 +108,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
     if (updated.isNotEmpty) {
       return _fromMap(updated.first);
     }
-    // fallback: re-read
+    
     final got = await getActivityById(activity.id);
     if (got == null) throw Exception('No se pudo leer actividad actualizada');
     return got;
@@ -122,7 +122,7 @@ class CourseActivityRepositoryImpl implements CourseActivityRepository {
       id: activityId,
       updates: {'is_active': false},
     );
-    // Consider success if backend did not error
+    
     return true;
   }
 }

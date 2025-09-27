@@ -70,110 +70,95 @@ class _CourseEditPageState extends State<CourseEditPage> {
   Widget build(BuildContext context) {
     return CoursePageScaffold(
       header: CourseHeader(
-        title: 'Editar curso',
-        subtitle: 'Actualiza la información del curso',
+        title: 'Editar',
+        subtitle: 'Curso',
         inactive: (courseController.coursesCache[courseId]?.isActive == false),
       ),
       sections: [
-        SectionCard(
-          title: 'Datos básicos',
-          count: 0,
-          leadingIcon: Icons.edit,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Ingresa un nombre'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _descCtrl,
-                  decoration: const InputDecoration(labelText: 'Descripción'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 20),
-                Obx(() {
-                  final loading = courseController.isLoading.value;
-                  return SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: loading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.goldAccent,
-                        foregroundColor: AppTheme.premiumBlack,
-                      ),
-                      child: Text(loading ? 'Guardando…' : 'Guardar cambios'),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 12),
-                FutureBuilder(
-                  future: courseController.getCourseById(courseId),
-                  builder: (context, snapshot) {
-                    final c = snapshot.data;
-                    if (c == null) return const SizedBox.shrink();
-                    final isActive = c.isActive;
-                    final color = isActive ? Colors.red : Colors.green;
-                    final label =
-                        isActive ? 'Deshabilitar curso' : 'Habilitar curso';
-                    return Obx(() {
-                      final loading = courseController.isLoading.value;
-                      return SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: color,
-                            side: BorderSide(color: color),
-                          ),
-                          onPressed: loading
-                              ? null
-                              : () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      title: Text(label),
-                                      content: Text(isActive
-                                          ? 'Esto deshabilitará el curso. No se podrán crear elementos hasta habilitarlo de nuevo.'
-                                          : 'Esto habilitará el curso si no superas el límite de 3 activos.'),
-                                      actions: [
-                                        TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, false),
-                                            child: const Text('Cancelar')),
-                                        ElevatedButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, true),
-                                            child: Text(label)),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    final result = await courseController
-                                        .setCourseActive(courseId, !isActive);
-                                    if (result != null) {
-                                      // Trigger cache refresh & reactive UI updates
-                                      await courseController
-                                          .getCourseById(courseId);
-                                      courseController.loadMyTeachingCourses();
-                                      // Potential: notify listeners/home to recalc counts (handled in future todo items)
-                                      await _load();
-                                    }
-                                  }
-                                },
-                          child: Text(label),
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Ingresa un nombre' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _descCtrl,
+                decoration: const InputDecoration(labelText: 'Descripción'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 20),
+              Obx(() {
+                final loading = courseController.isLoading.value;
+                return SaveButton(
+                    onPressed: _submit, loading: loading, label: 'GUARDAR');
+              }),
+              const SizedBox(height: 12),
+              FutureBuilder(
+                future: courseController.getCourseById(courseId),
+                builder: (context, snapshot) {
+                  final c = snapshot.data;
+                  if (c == null) return const SizedBox.shrink();
+                  final isActive = c.isActive;
+                  final color = isActive ? Colors.red : Colors.green;
+                  final label =
+                      isActive ? 'Deshabilitar curso' : 'Habilitar curso';
+                  return Obx(() {
+                    final loading = courseController.isLoading.value;
+                    return SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: color,
+                          foregroundColor: Colors.white,
                         ),
-                      );
-                    });
-                  },
-                ),
-              ],
-            ),
+                        onPressed: loading
+                            ? null
+                            : () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: Text(label),
+                                    content: Text(isActive
+                                        ? 'Esto deshabilitará el curso. No se podrán crear elementos hasta habilitarlo de nuevo.'
+                                        : 'Esto habilitará el curso si no superas el límite de 3 activos.'),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, false),
+                                          child: const Text('Cancelar')),
+                                      ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pop(ctx, true),
+                                          child: Text(label)),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  final result = await courseController
+                                      .setCourseActive(courseId, !isActive);
+                                  if (result != null) {
+                                    
+                                    await courseController
+                                        .getCourseById(courseId);
+                                    courseController.loadMyTeachingCourses();
+                                    
+                                    await _load();
+                                  }
+                                }
+                              },
+                        child: Text(label),
+                      ),
+                    );
+                  });
+                },
+              ),
+            ],
           ),
         ),
       ],

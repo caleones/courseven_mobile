@@ -24,9 +24,9 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
   final _authController = Get.find<AuthController>();
   final ThemeController themeController = Get.find<ThemeController>();
 
-  // Countdown logic
-  static const int _tokenTotalSeconds = 15 * 60; // 15 minutes
-  static const int _resendCooldownSeconds = 60; // 1 minute
+  
+  static const int _tokenTotalSeconds = 15 * 60; 
+  static const int _resendCooldownSeconds = 60; 
   int _tokenSecondsRemaining = _tokenTotalSeconds;
   int _resendSecondsRemaining = _resendCooldownSeconds;
   Timer? _timer;
@@ -102,17 +102,17 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
       body: GetBuilder<ThemeController>(
         builder: (themeController) => Stack(
           children: [
-            // Fondo con estrellas
+            
             StarryBackground(
               child: Container(),
               isDarkMode: themeController.isDarkMode,
             ),
 
-            // Contenido principal
+            
             SafeArea(
               child: Column(
                 children: [
-                  // AppBar personalizada con toggle de tema
+                  
                   Padding(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -133,7 +133,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
                     ),
                   ),
 
-                  // Contenido scrolleable
+                  
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(24.0),
@@ -144,7 +144,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
                           children: [
                             const SizedBox(height: 20),
 
-                            // Icono
+                            
                             Icon(
                               Icons.link,
                               size: 80,
@@ -153,7 +153,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 32),
 
-                            // Título
+                            
                             Text(
                               'Pega tu enlace de recuperación',
                               style: Theme.of(context)
@@ -165,7 +165,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 16),
 
-                            // Descripción
+                            
                             Text(
                               'Ve al correo que recibiste de ROBLE, busca el botón "Restablecer Contraseña", mantén presionado sobre él y selecciona "Copiar enlace". Luego pega aquí la URL completa.',
                               style: Theme.of(context)
@@ -184,7 +184,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 16),
 
-                            // Barra y conteo de 15 minutos
+                            
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
@@ -235,7 +235,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 16),
 
-                            // Instrucciones paso a paso
+                            
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
@@ -276,7 +276,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 32),
 
-                            // Campo de URL
+                            
                             TextFormField(
                               controller: _urlController,
                               keyboardType: TextInputType.url,
@@ -305,7 +305,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 24),
 
-                            // Campos de nueva contraseña
+                            
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscureNewPassword,
@@ -345,7 +345,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
                               },
                             ),
 
-                            // Requisitos de contraseña en vivo
+                            
                             PasswordRequirements(
                               password: _passwordController.text,
                               padding: const EdgeInsets.only(top: 8),
@@ -388,7 +388,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
                               },
                             ),
 
-                            // Indicador de no coincidencia en vivo (solo mensaje, sin bloquear)
+                            
                             if (_confirmPasswordController.text.isNotEmpty &&
                                 _confirmPasswordController.text !=
                                     _passwordController.text)
@@ -415,7 +415,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 16),
 
-                            // Mensaje de error
+                            
                             Obx(() {
                               if (_authController.errorMessage.isNotEmpty) {
                                 return Container(
@@ -446,7 +446,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
                               return const SizedBox.shrink();
                             }),
 
-                            // Botón de actualizar contraseña
+                            
                             Obx(() => ElevatedButton(
                                   onPressed: _authController.isLoading
                                       ? null
@@ -481,7 +481,7 @@ class _ResetLinkPageState extends State<ResetLinkPage> {
 
                             const SizedBox(height: 24),
 
-                            // Ayuda adicional
+                            
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(

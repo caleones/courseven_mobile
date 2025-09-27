@@ -13,23 +13,50 @@ class EnrollToCourseUseCase {
   final CourseRepository _courseRepository;
   EnrollToCourseUseCase(this._enrollmentRepository, this._courseRepository);
 
-  /// Busca el curso por joinCode y crea la inscripción del usuario si no existe.
-  /// Lanza excepción si el código no es válido o ya está inscrito.
+  
+  
+  
+  
+  
+  
   Future<Enrollment> call(EnrollToCourseParams p) async {
-    // 1) Buscar curso por joinCode
+    
     final course = await _courseRepository.getCourseByJoinCode(p.joinCode);
     if (course == null) {
       throw Exception('Código de ingreso inválido');
     }
 
-    // 2) Verificar si ya está inscrito
-    final already = await _enrollmentRepository.isStudentEnrolledInCourse(
-        p.userId, course.id);
-    if (already) {
+    
+    if (course.teacherId == p.userId) {
+      throw Exception(
+          'No puedes inscribirte como estudiante en tu propio curso');
+    }
+
+    
+    final myEnrollments =
+        await _enrollmentRepository.getEnrollmentsByStudent(p.userId);
+    Enrollment? existing;
+    for (final e in myEnrollments) {
+      if (e.courseId == course.id) {
+        existing = e;
+        break;
+      }
+    }
+
+    
+    if (existing != null && existing.isActive) {
       throw Exception('Ya estás inscrito en este curso');
     }
 
-    // 3) Crear inscripción
+    
+    if (existing != null && !existing.isActive) {
+      final reactivated = await _enrollmentRepository.updateEnrollment(
+        existing.copyWith(isActive: true, enrolledAt: DateTime.now()),
+      );
+      return reactivated;
+    }
+
+    
     final now = DateTime.now();
     final enrollment = Enrollment(
       id: '',

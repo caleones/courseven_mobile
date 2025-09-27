@@ -1,6 +1,6 @@
-/// Entidad de dominio para representar un curso en el sistema CourSEVEN
-/// Alineada con el esquema de la tabla `courses`:
-/// - _id, name, description, join_code, teacher_id, created_at, is_active
+
+
+
 class Course {
   final String id;
   final String name;
@@ -20,10 +20,10 @@ class Course {
     this.isActive = true,
   });
 
-  /// Curso está activo
+  
   bool get isActiveCourse => isActive;
 
-  /// Crear copia del curso con cambios
+  
   Course copyWith({
     String? id,
     String? name,

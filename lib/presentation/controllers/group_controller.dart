@@ -13,8 +13,8 @@ class GroupController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
   final createdGroup = Rxn<Group>();
-  final groupsByCourse = <String, List<Group>>{}.obs; // courseId -> list
-  final groupsByCategory = <String, List<Group>>{}.obs; // categoryId -> list
+  final groupsByCourse = <String, List<Group>>{}.obs; 
+  final groupsByCategory = <String, List<Group>>{}.obs; 
 
   AuthController get _auth => Get.find<AuthController>();
   String? get currentTeacherId => _auth.currentUser?.id;

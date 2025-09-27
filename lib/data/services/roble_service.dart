@@ -3,33 +3,33 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Gestiona todas las operaciones de comunicación con la API de ROBLE
+
 class RobleService {
-  // Hard-coded fallbacks to avoid any dotenv dependency during startup
+  
   static const String _fallbackAuthUrl =
       'https://roble-api.openlab.uninorte.edu.co/auth';
   static const String _fallbackDbUrl =
       'https://roble-api.openlab.uninorte.edu.co/database';
   static const String _fallbackDbName = 'courseven_66a52df881';
 
-  // Cached values to avoid repeated dotenv calls
+  
   String? _cachedAuthUrl;
   String? _cachedDbUrl;
   String? _cachedDbName;
   String? _cachedReadonlyEmail;
   String? _cachedReadonlyPassword;
   bool _envInitialized =
-      false; // tracks if we've successfully observed dotenv initialized at least once
+      false; 
 
-  // Safe env accessor with initialization check
+  
   String? _env(String key) {
-    // Nunca accedes directamente a dotenv.env; solo verificas el flag expuesto por el paquete
-    // y usas maybeGet que es seguro y retorna null cuando falta la clave
+    
+    
     if (!_envInitialized) {
       if (dotenv.isInitialized) {
         _envInitialized = true;
       } else {
-        // Mantienes este log ligero para evitar spam mientras la app inicia
+        
         debugPrint(
             '[ENV] Variables de entorno no inicializadas aún para "$key", usando fallback');
         return null;
@@ -38,13 +38,13 @@ class RobleService {
     try {
       return dotenv.maybeGet(key);
     } catch (e) {
-      // Extremadamente defensivo: si la llamada subyacente falla por cualquier razón, retorna null
+      
       debugPrint('[ENV] Error accediendo variable "$key": $e');
       return null;
     }
   }
 
-  // Getters with caching and fallbacks
+  
   String get _baseAuthUrl {
     _cachedAuthUrl ??= _env('ROBLE_AUTH_BASE_URL') ?? _fallbackAuthUrl;
     return _cachedAuthUrl!;
@@ -52,21 +52,21 @@ class RobleService {
 
   String get _baseDatabaseUrl {
     if (_cachedDbUrl == null) {
-      // Prefer env var but fall back to default
+      
       var raw = _env('ROBLE_DB_BASE_URL') ?? _fallbackDbUrl;
       var normalized = raw.trim();
-      // Remove trailing slashes
+      
       while (normalized.endsWith('/')) {
         normalized = normalized.substring(0, normalized.length - 1);
       }
-      // Ensure the base URL points to the /database endpoint exactly
-      // Common misconfig: env contains host without '/database' which would cause
-      // requests like '/<dbName>/update' (404). We fix it here.
+      
+      
+      
       const seg = '/database';
       if (!normalized.endsWith(seg)) {
         final idx = normalized.indexOf(seg);
         if (idx >= 0) {
-          // Trim to include only up to '/database'
+          
           normalized = normalized.substring(0, idx + seg.length);
         } else {
           normalized = '$normalized$seg';
@@ -83,21 +83,21 @@ class RobleService {
     return _cachedDbName!;
   }
 
-  // headers básicos que necesitas en todas las peticiones HTTP
+  
   Map<String, String> get _baseHeaders => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       };
 
-  // headers con autenticación cuando necesitas enviar el token de acceso
+  
   Map<String, String> _authHeaders(String token) => {
         ..._baseHeaders,
         'Authorization': 'Bearer $token',
       };
 
-  // ========== AUTENTICACIÓN ==========
+  
 
-  // Valida credenciales de usuario contra la base de datos y sistema de autenticación
+  
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -117,16 +117,16 @@ class RobleService {
       String emailForAuth;
 
       if (isEmail) {
-        // Caso 1: recibiste un email, lo usas directamente para autenticación
+        
         emailForAuth = email;
         debugPrint('[AUTH] Usando email directamente: $emailForAuth');
       } else {
-        // Caso 2: recibiste un username, necesitas encontrar el email correspondiente
+        
         debugPrint(
             '[AUTH] Username detectado, buscando email en base de datos');
 
-        // Para buscar por username, necesitas un token temporal
-        // Usas credenciales que sabes que existen en el sistema de auth
+        
+        
         debugPrint('[AUTH] Obteniendo token temporal para consulta');
         final roEmail = _env('ROBLE_READONLY_EMAIL');
         final roPass = _env('ROBLE_READONLY_PASSWORD');
@@ -144,7 +144,7 @@ class RobleService {
           throw Exception('No se pudo obtener token temporal');
         }
 
-        // Buscas el usuario por username para obtener su email
+        
         debugPrint('[AUTH] Consultando usuario por username: $email');
         final url = '$_baseDatabaseUrl/$_dbName/read';
         final response = await http.get(
@@ -167,7 +167,7 @@ class RobleService {
         }
       }
 
-      // Realizas login con el email correcto en el sistema de autenticación ROBLE
+      
       debugPrint('[AUTH] Autenticando con email: $emailForAuth');
       final authResponse =
           await loginAuth(email: emailForAuth, password: password);
@@ -179,7 +179,7 @@ class RobleService {
 
       debugPrint('[AUTH] Token de acceso obtenido exitosamente');
 
-      // Buscas los datos completos del usuario en la tabla users
+      
       debugPrint('[AUTH] Obteniendo datos completos del usuario');
       final url = '$_baseDatabaseUrl/$_dbName/read';
       final response = await http.get(
@@ -202,7 +202,7 @@ class RobleService {
 
           return {
             'success': true,
-            'accessToken': accessToken, // usar token real de ROBLE
+            'accessToken': accessToken, 
             'refreshToken': authResponse['refreshToken'],
             'access_token': accessToken,
             'refresh_token': authResponse['refreshToken'],
@@ -221,10 +221,10 @@ class RobleService {
     }
   }
 
-  // Obtiene un token temporal para consultas públicas (p. ej., validación de disponibilidad)
+  
   Future<String> _getTempAccessToken() async {
     try {
-      // Usas valores en caché para evitar accesos repetidos al entorno
+      
       _cachedReadonlyEmail ??= _env('ROBLE_READONLY_EMAIL');
       _cachedReadonlyPassword ??= _env('ROBLE_READONLY_PASSWORD');
 
@@ -244,8 +244,8 @@ class RobleService {
     }
   }
 
-  // Verifica si un email está disponible para registro
-  // Retorna true => disponible, false => NO disponible (incluye cualquier fallo de validación)
+  
+  
   Future<bool> isEmailAvailable(String email) async {
     final normalized = email.trim().toLowerCase();
     final baseUrl = '$_baseDatabaseUrl/$_dbName/read';
@@ -285,7 +285,7 @@ class RobleService {
             final count = data.length;
             debugPrint(
                 '[EMAIL_CHECK] Intento $attempt - Lista parseada con $count filas');
-            // Si existe al menos un registro con ese email => NO disponible
+            
             final available = count == 0;
             debugPrint(
                 '[EMAIL_CHECK] Intento $attempt - Email disponible: $available');
@@ -305,22 +305,22 @@ class RobleService {
         debugPrint('[EMAIL_CHECK] Intento $attempt - Excepción: $e');
       }
 
-      // Pequeño backoff entre intentos
+      
       await Future.delayed(const Duration(milliseconds: 200));
     }
 
     debugPrint(
         '[EMAIL_CHECK] Todos los intentos fallaron, retornando NO DISPONIBLE (fail-closed)');
-    return false; // fail-closed: si no puedes validar, bloqueas registro para evitar colisiones
+    return false; 
   }
 
-  // Verifica si un username está disponible para registro
-  // Retorna true => disponible, false => NO disponible (incluye cualquier fallo de validación)
+  
+  
   Future<bool> isUsernameAvailable(String username) async {
     final raw = username.trim();
-    // Nota: por defecto Postgres compara con sensibilidad a mayúsculas/minúsculas.
-    // Puedes normalizar si tu política es username en minúsculas, considera normalizar aquí y en DB.
-    final candidate = raw; // o raw.toLowerCase() si se homologa en DB
+    
+    
+    final candidate = raw; 
     final baseUrl = '$_baseDatabaseUrl/$_dbName/read';
     debugPrint('[USERNAME_CHECK] Verificando disponibilidad de username');
     if (kDebugMode) {
@@ -382,10 +382,10 @@ class RobleService {
 
     debugPrint(
         '[USERNAME_CHECK] Todos los intentos fallaron, retornando NO DISPONIBLE (fail-closed)');
-    return false; // fail-closed
+    return false; 
   }
 
-  // Utilidad opcional: health check de conectividad y permisos
+  
   Future<bool> robleHealthCheck() async {
     try {
       print('=== ROBLE Health Check ===');
@@ -421,7 +421,7 @@ class RobleService {
     }
   }
 
-  // ========== CURSOS (Database) ==========
+  
 
   Uri _dbReadUri(String table, [Map<String, String>? query]) {
     final params = {'tableName': table, ...?query};
@@ -429,7 +429,7 @@ class RobleService {
         .replace(queryParameters: params);
   }
 
-  /// Lee cursos por ID de profesor (teacher_id)
+  
   Future<List<Map<String, dynamic>>> readCoursesByTeacher({
     required String accessToken,
     required String teacherId,
@@ -456,7 +456,7 @@ class RobleService {
     }
   }
 
-  /// Inserta un curso en la tabla courses
+  
   Future<Map<String, dynamic>> insertCourse({
     required String accessToken,
     required Map<String, dynamic> record,
@@ -483,14 +483,14 @@ class RobleService {
     }
   }
 
-  /// Actualiza un curso (por _id)
+  
   Future<Map<String, dynamic>> updateCourse({
     required String accessToken,
     required String id,
     required Map<String, dynamic> updates,
   }) async {
     try {
-      final baseUrl = _baseDatabaseUrl; // triggers normalization + log
+      final baseUrl = _baseDatabaseUrl; 
       final primaryUrl = '$baseUrl/$_dbName/update';
       final payload = {
         'tableName': 'courses',
@@ -498,7 +498,7 @@ class RobleService {
         'idValue': id,
         'updates': updates,
       };
-      // Verbose logging for diagnostics
+      
       debugPrint('[COURSES][UPDATE] ====== BEGIN REQUEST ======');
       debugPrint('[COURSES][UPDATE] DB Base URL: $baseUrl');
       debugPrint('[COURSES][UPDATE] DB Name    : $_dbName');
@@ -524,7 +524,7 @@ class RobleService {
         debugPrint('[COURSES][UPDATE] Empty body response');
       }
 
-      // Success path
+      
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         debugPrint('[COURSES][UPDATE] SUCCESS primary endpoint');
         final data = jsonDecode(resp.body);
@@ -533,13 +533,13 @@ class RobleService {
         return data is Map<String, dynamic> ? data : {'data': data};
       }
 
-      // If 404, attempt a fallback assumption: maybe env already included '/database' and we added again? (defensive)
+      
       if (resp.statusCode == 404) {
-        // Derive an alternate base by stripping a trailing '/database'
+        
         String altBase = baseUrl.endsWith('/database')
             ? baseUrl.substring(0, baseUrl.length - '/database'.length)
             : baseUrl;
-        // Also try without re-appending '/database'
+        
         final altUrl = '$altBase/$_dbName/update';
         if (altUrl != primaryUrl) {
           debugPrint(
@@ -579,7 +579,7 @@ class RobleService {
     }
   }
 
-  /// Lee cursos con consulta arbitraria (por id, categoría, etc.)
+  
   Future<List<Map<String, dynamic>>> readCourses({
     required String accessToken,
     Map<String, String>? query,
@@ -599,7 +599,7 @@ class RobleService {
     }
   }
 
-  /// Busca cursos por join_code exacto
+  
   Future<List<Map<String, dynamic>>> readCoursesByJoinCode({
     required String accessToken,
     required String joinCode,
@@ -608,9 +608,9 @@ class RobleService {
         accessToken: accessToken, query: {'join_code': joinCode});
   }
 
-  // ========== CATEGORÍAS (Database) ==========
+  
 
-  /// Lee categorías con filtros
+  
   Future<List<Map<String, dynamic>>> readCategories({
     required String accessToken,
     Map<String, String>? query,
@@ -630,7 +630,7 @@ class RobleService {
     }
   }
 
-  /// Inserta una categoría en la tabla categories
+  
   Future<Map<String, dynamic>> insertCategory({
     required String accessToken,
     required Map<String, dynamic> record,
@@ -657,7 +657,7 @@ class RobleService {
     }
   }
 
-  /// Actualiza una categoría (por _id)
+  
   Future<Map<String, dynamic>> updateCategory({
     required String accessToken,
     required String id,
@@ -687,9 +687,9 @@ class RobleService {
     }
   }
 
-  // ========== GRUPOS (Database) ==========
+  
 
-  /// Lee grupos con filtros
+  
   Future<List<Map<String, dynamic>>> readGroups({
     required String accessToken,
     Map<String, String>? query,
@@ -709,7 +709,7 @@ class RobleService {
     }
   }
 
-  /// Inserta un grupo en la tabla groups
+  
   Future<Map<String, dynamic>> insertGroup({
     required String accessToken,
     required Map<String, dynamic> record,
@@ -736,27 +736,53 @@ class RobleService {
     }
   }
 
-  /// Actualiza un grupo (por _id)
+  
   Future<Map<String, dynamic>> updateGroup({
     required String accessToken,
     required String id,
     required Map<String, dynamic> updates,
   }) async {
     try {
-      final url = '$_baseDatabaseUrl/$_dbName/update';
+      final baseUrl = _baseDatabaseUrl; 
+      final primaryUrl = '$baseUrl/$_dbName/update';
       final payload = {
         'tableName': 'groups',
-        'filter': {'_id': id},
+        'idColumn': '_id',
+        'idValue': id,
         'updates': updates,
       };
-      final resp = await http.post(
-        Uri.parse(url),
+      debugPrint('[GROUPS][UPDATE] PUT $primaryUrl');
+      if (kDebugMode) {
+        debugPrint('[GROUPS][UPDATE] Payload: ${jsonEncode(payload)}');
+      }
+      final resp = await http.put(
+        Uri.parse(primaryUrl),
         headers: _authHeaders(accessToken),
         body: jsonEncode(payload),
       );
+      debugPrint('[GROUPS][UPDATE] Status: ${resp.statusCode}');
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         final data = jsonDecode(resp.body);
         return data is Map<String, dynamic> ? data : {'data': data};
+      }
+      if (resp.statusCode == 404) {
+        String altBase = baseUrl.endsWith('/database')
+            ? baseUrl.substring(0, baseUrl.length - '/database'.length)
+            : baseUrl;
+        final altUrl = '$altBase/$_dbName/update';
+        if (altUrl != primaryUrl) {
+          debugPrint('[GROUPS][UPDATE] 404 fallback -> $altUrl');
+          final resp2 = await http.put(
+            Uri.parse(altUrl),
+            headers: _authHeaders(accessToken),
+            body: jsonEncode(payload),
+          );
+          debugPrint('[GROUPS][UPDATE] Fallback status: ${resp2.statusCode}');
+          if (resp2.statusCode == 200 || resp2.statusCode == 201) {
+            final data = jsonDecode(resp2.body);
+            return data is Map<String, dynamic> ? data : {'data': data};
+          }
+        }
       }
       final err = resp.body.isNotEmpty ? resp.body : 'unknown error';
       throw Exception('DB update group failed: ${resp.statusCode} $err');
@@ -766,9 +792,9 @@ class RobleService {
     }
   }
 
-  // ========== ENROLLMENTS (Database) ==========
+  
 
-  /// Lee inscripciones con filtros
+  
   Future<List<Map<String, dynamic>>> readEnrollments({
     required String accessToken,
     Map<String, String>? query,
@@ -792,9 +818,9 @@ class RobleService {
     }
   }
 
-  // ========== ACTIVITIES (Database) ==========
+  
 
-  /// Lee actividades con filtros (por course_id, category_id, etc.)
+  
   Future<List<Map<String, dynamic>>> readActivities({
     required String accessToken,
     Map<String, String>? query,
@@ -822,7 +848,7 @@ class RobleService {
     }
   }
 
-  /// Inserta una actividad en la tabla activities
+  
   Future<Map<String, dynamic>> insertActivity({
     required String accessToken,
     required Map<String, dynamic> record,
@@ -860,14 +886,14 @@ class RobleService {
     }
   }
 
-  /// Actualiza una actividad (por _id)
+  
   Future<Map<String, dynamic>> updateActivity({
     required String accessToken,
     required String id,
     required Map<String, dynamic> updates,
   }) async {
     try {
-      final baseUrl = _baseDatabaseUrl; // triggers normalization + log
+      final baseUrl = _baseDatabaseUrl; 
       final primaryUrl = '$baseUrl/$_dbName/update';
       final payload = {
         'tableName': 'activities',
@@ -890,7 +916,7 @@ class RobleService {
         return data is Map<String, dynamic> ? data : {'data': data};
       }
 
-      // If 404, attempt fallback like in updateCourse
+      
       if (resp.statusCode == 404) {
         String altBase = baseUrl.endsWith('/database')
             ? baseUrl.substring(0, baseUrl.length - '/database'.length)
@@ -922,9 +948,9 @@ class RobleService {
     }
   }
 
-  // ========== MEMBERSHIPS (Database) ==========
+  
 
-  /// Lee membresías con filtros
+  
   Future<List<Map<String, dynamic>>> readMemberships({
     required String accessToken,
     Map<String, String>? query,
@@ -952,12 +978,13 @@ class RobleService {
     }
   }
 
-  // ========== GENERIC TABLE HELPERS (lightweight) ==========
-  /// Generic read for arbitrary table using simple equality filters.
+  
+  
   Future<List<Map<String, dynamic>>> readTable({
     required String accessToken,
     required String table,
     Map<String, String>? query,
+    bool suppressErrorLog = false,
   }) async {
     try {
       final uri = _dbReadUri(table, query);
@@ -970,12 +997,14 @@ class RobleService {
       }
       throw Exception('DB read $table failed: ${resp.statusCode}');
     } catch (e) {
-      debugPrint('[GENERIC][READ][$table] Error: $e');
+      if (!suppressErrorLog) {
+        debugPrint('[GENERIC][READ][$table] Error: $e');
+      }
       rethrow;
     }
   }
 
-  /// Generic insert (multiple records) returning raw backend response.
+  
   Future<Map<String, dynamic>> insertTable({
     required String accessToken,
     required String table,
@@ -987,6 +1016,15 @@ class RobleService {
       debugPrint('[GENERIC][INSERT][$table] POST $url');
       final resp = await http.post(Uri.parse(url),
           headers: _authHeaders(accessToken), body: jsonEncode(payload));
+      debugPrint('[GENERIC][INSERT][$table] Status: ${resp.statusCode}');
+      if (kDebugMode) {
+        final body = resp.body;
+        if (body.isNotEmpty) {
+          final preview =
+              body.length > 600 ? body.substring(0, 600) + '...' : body;
+          debugPrint('[GENERIC][INSERT][$table] Body: $preview');
+        }
+      }
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         final data = jsonDecode(resp.body);
         return data is Map<String, dynamic> ? data : {'data': data};
@@ -998,7 +1036,7 @@ class RobleService {
     }
   }
 
-  /// Generic update (filter by _id single) for arbitrary table.
+  
   Future<Map<String, dynamic>> updateRow({
     required String accessToken,
     required String table,
@@ -1006,7 +1044,7 @@ class RobleService {
     required Map<String, dynamic> updates,
   }) async {
     try {
-      final baseUrl = _baseDatabaseUrl; // triggers normalization + log
+      final baseUrl = _baseDatabaseUrl; 
       final primaryUrl = '$baseUrl/$_dbName/update';
       final payload = {
         'tableName': table,
@@ -1024,7 +1062,7 @@ class RobleService {
         return data is Map<String, dynamic> ? data : {'data': data};
       }
 
-      // If 404, attempt fallback like in updateCourse
+      
       if (resp.statusCode == 404) {
         String altBase = baseUrl.endsWith('/database')
             ? baseUrl.substring(0, baseUrl.length - '/database'.length)
@@ -1056,7 +1094,7 @@ class RobleService {
     }
   }
 
-  /// Inserta una membresía en la tabla memberships
+  
   Future<Map<String, dynamic>> insertMembership({
     required String accessToken,
     required Map<String, dynamic> record,
@@ -1095,7 +1133,7 @@ class RobleService {
     }
   }
 
-  /// Inserta una inscripción en la tabla enrollments
+  
   Future<Map<String, dynamic>> insertEnrollment({
     required String accessToken,
     required Map<String, dynamic> record,
@@ -1122,7 +1160,7 @@ class RobleService {
     }
   }
 
-  // login original usando el auth de ROBLE (solo para verificacion de email)
+  
   Future<Map<String, dynamic>> loginAuth({
     required String email,
     required String password,
@@ -1147,13 +1185,13 @@ class RobleService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
 
-        // normalizo la respuesta para que el AuthController la entienda fácil
+        
         return {
           'success': true,
           'accessToken': data['accessToken'],
           'refreshToken': data['refreshToken'],
-          'access_token': data['accessToken'], // por compatibilidad
-          'refresh_token': data['refreshToken'], // por compatibilidad
+          'access_token': data['accessToken'], 
+          'refresh_token': data['refreshToken'], 
           'data': data['user'],
           'user': data['user'],
         };
@@ -1167,7 +1205,7 @@ class RobleService {
     }
   }
 
-  // verifico si el token sigue siendo válido
+  
   Future<Map<String, dynamic>> verifyToken({
     required String accessToken,
   }) async {
@@ -1197,7 +1235,7 @@ class RobleService {
     }
   }
 
-  // registro inicial - solo manda email para verificación
+  
   Future<Map<String, dynamic>> signup({
     required String email,
     required String password,
@@ -1234,7 +1272,7 @@ class RobleService {
     }
   }
 
-  // verifico el código que llegó al email
+  
   Future<Map<String, dynamic>> verifyEmail({
     required String email,
     required String code,
@@ -1258,8 +1296,8 @@ class RobleService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        // ROBLE responde con mensaje de éxito pero no con 'success' field
-        // le agrego 'success': true para manejarlo más fácil
+        
+        
         if (response.statusCode == 201 && data.containsKey('message')) {
           data['success'] = true;
         }
@@ -1274,7 +1312,7 @@ class RobleService {
     }
   }
 
-  // registro directo sin verificación de email (no lo uso pero está por si acaso)
+  
   Future<Map<String, dynamic>> signupDirect({
     required String email,
     required String password,
@@ -1311,36 +1349,36 @@ class RobleService {
     }
   }
 
-  // ========== RECUPERACIÓN DE CONTRASEÑA ==========
+  
 
-  // Flujo completo para "olvidaste tu contraseña":
-  //
-  // PASO 1: requestPasswordReset(email)
-  // - Envía email con enlace de ROBLE
-  //
-  // PASO 2: Usuario sigue estas instrucciones:
-  // "1. Revisa tu correo electrónico
-  //  2. Haz clic en el botón 'Restablecer Contraseña'
-  //  3. Se abrirá una página web - COPIA la dirección completa que aparece arriba
-  //  4. Regresa a la app y pega esa dirección en el campo"
-  //
-  // PASO 3: extractTokenFromResetUrl(url)
-  // - Extrae el token de la URL pegada por el usuario
-  // - Valida que sea una URL válida de ROBLE
-  //
-  // PASO 4: validateResetToken(token)
-  // - Verifica que el token sea válido y no haya expirado
-  //
-  // PASO 5: resetPassword(token, newPassword)
-  // - Cambia la contraseña en AUTH de ROBLE
-  //
-  // EXPIRACIÓN: 15 minutos desde que se envía el email
-  //
-  // UI SUGERIDA:
-  // Screen 1: Campo email -> botón "Enviar enlace"
-  // Screen 2: Instrucciones + campo para pegar URL -> botón "Validar"
-  // Screen 3: Campos "Nueva contraseña" y "Confirmar" -> botón "Cambiar"
-  // Screen 4: Confirmación de cambio exitoso  // paso 1: solicitar código de recuperación por email
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   Future<Map<String, dynamic>> requestPasswordReset({
     required String email,
   }) async {
@@ -1378,7 +1416,7 @@ class RobleService {
     }
   }
 
-  // Función de prueba para el sistema de recuperación de contraseña
+  
   Future<void> testForgotPassword() async {
     try {
       debugPrint(
@@ -1390,7 +1428,7 @@ class RobleService {
     }
   }
 
-  // Ejecuta el flujo completo de restablecimiento de contraseña
+  
   Future<Map<String, dynamic>> completePasswordReset({
     required String resetUrl,
     required String newPassword,
@@ -1399,7 +1437,7 @@ class RobleService {
       debugPrint(
           '[PASSWORD_RESET] Iniciando flujo completo de restablecimiento');
 
-      // Paso 1: Extraes el token de la URL
+      
       print('Extrayendo token de la URL...');
       final token = extractTokenFromResetUrl(resetUrl);
       if (token == null) {
@@ -1407,7 +1445,7 @@ class RobleService {
             'URL inválida. Asegúrate de copiar el enlace completo del email.');
       }
 
-      // Paso 2: Validar que el token sea válido
+      
       print('Validando token...');
       final isValidToken = await validateResetToken(token);
       if (!isValidToken) {
@@ -1415,7 +1453,7 @@ class RobleService {
             'El enlace ha expirado o es inválido. Solicita un nuevo enlace.');
       }
 
-      // Paso 3: Cambiar la contraseña
+      
       print('Cambiando contraseña...');
       final result =
           await resetPassword(token: token, newPassword: newPassword);
@@ -1428,26 +1466,26 @@ class RobleService {
     }
   }
 
-  // Extrae el token de restablecimiento de la URL del email
+  
   String? extractTokenFromResetUrl(String url) {
     try {
       debugPrint('[PASSWORD_RESET] Extrayendo token de URL: $url');
 
-      // Validas que sea una URL válida
+      
       final uri = Uri.tryParse(url);
       if (uri == null) {
         debugPrint('[PASSWORD_RESET] URL inválida');
         return null;
       }
 
-      // Validar que sea una URL de ROBLE reset-password
+      
       if (!uri.host.contains('roble.openlab.uninorte.edu.co') ||
           !uri.path.contains('reset-password')) {
         print('URL no es de reset-password de ROBLE');
         return null;
       }
 
-      // Extraer el token del parámetro query
+      
       final token = uri.queryParameters['token'];
       if (token == null || token.isEmpty) {
         print('No se encontró token en la URL');
@@ -1462,40 +1500,40 @@ class RobleService {
     }
   }
 
-  // Valida si un token de restablecimiento es válido (sin cambiar contraseña)
+  
   Future<bool> validateResetToken(String token) async {
     try {
       debugPrint('[PASSWORD_RESET] Validando token de restablecimiento');
 
-      // Intentas hacer una petición de reset con una contraseña temporal
-      // Si el token es válido, recibirás un error específico o éxito
+      
+      
       final url = '$_baseAuthUrl/$_dbName/reset-password';
       final response = await http.post(
         Uri.parse(url),
         headers: _baseHeaders,
         body: jsonEncode({
           'token': token,
-          'newPassword': '', // contraseña vacía para solo validar token
+          'newPassword': '', 
         }),
       );
 
       print('Validación token status: ${response.statusCode}');
       print('Validación token body: ${response.body}');
 
-      // Si el token es válido pero la contraseña es inválida,
-      // deberíamos recibir un error sobre la contraseña, no sobre el token
+      
+      
       if (response.statusCode == 400) {
         final error = jsonDecode(response.body);
         final message = error['message'] ?? '';
 
-        // Si el error es sobre la contraseña, el token es válido
+        
         if (message.toLowerCase().contains('password') ||
             message.toLowerCase().contains('contraseña')) {
           print('Token válido (error de contraseña como esperado)');
           return true;
         }
 
-        // Si el error es sobre el token, entonces el token es inválido
+        
         if (message.toLowerCase().contains('token') ||
             message.toLowerCase().contains('invalid') ||
             message.toLowerCase().contains('expired')) {
@@ -1504,7 +1542,7 @@ class RobleService {
         }
       }
 
-      // Si es 200, el token también es válido (aunque la contraseña vacía funcionó)
+      
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('Token válido');
         return true;
@@ -1518,7 +1556,7 @@ class RobleService {
     }
   }
 
-  // paso 2: cambiar contraseña con token de reset
+  
   Future<Map<String, dynamic>> resetPassword({
     required String token,
     required String newPassword,
@@ -1565,9 +1603,9 @@ class RobleService {
     }
   }
 
-  // ========== MI BASE DE DATOS ==========
+  
 
-  // creo el usuario en mi tabla de users después del registro
+  
   Future<Map<String, dynamic>> createUserInDatabase({
     required String accessToken,
     required String email,
@@ -1605,7 +1643,7 @@ class RobleService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        // si el insert no insertó nada y solo dice "skipped", es un error
+        
         if (data is Map<String, dynamic>) {
           final inserted = data['inserted'];
           final skipped = data['skipped'];
@@ -1634,11 +1672,11 @@ class RobleService {
     }
   }
 
-  // Obtiene el perfil del usuario (implementación temporal)
+  
   Future<Map<String, dynamic>> getUserProfile() async {
     try {
-      // TODO: cuando ROBLE tenga endpoint de perfil lo conectas acá
-      // Por ahora retornas datos temporales
+      
+      
       return {
         'success': true,
         'data': {
@@ -1659,8 +1697,8 @@ class RobleService {
     }
   }
 
-  // Busca un usuario en la tabla users por email
-  /// Lee usuarios con filtros arbitrarios (por _id, email, username, etc.)
+  
+  
   Future<List<Map<String, dynamic>>> readUsers({
     required String accessToken,
     Map<String, String>? query,
@@ -1680,7 +1718,7 @@ class RobleService {
     }
   }
 
-  // Busca un usuario en la tabla users por email
+  
   Future<Map<String, dynamic>?> getUserFromDatabase({
     required String accessToken,
     required String email,
@@ -1725,7 +1763,7 @@ class RobleService {
     }
   }
 
-  // Renueva el access token usando el refresh token
+  
   Future<Map<String, dynamic>?> refreshAccessToken(String refreshToken) async {
     try {
       debugPrint('[ROBLE] Renovando access token...');
@@ -1747,7 +1785,7 @@ class RobleService {
         debugPrint('[ROBLE] Token renovado exitosamente');
         return {
           'accessToken': data['accessToken'],
-          'refreshToken': data['refreshToken'], // nuevo refresh token
+          'refreshToken': data['refreshToken'], 
         };
       } else {
         debugPrint(

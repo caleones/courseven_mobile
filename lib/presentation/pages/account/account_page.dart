@@ -21,7 +21,7 @@ class _AccountPageState extends State<AccountPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, // quita el botón de atrás
+        automaticallyImplyLeading: false, 
         title: Text(
           'Mi Cuenta',
           style: TextStyle(
@@ -36,19 +36,19 @@ class _AccountPageState extends State<AccountPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // Tarjeta con información básica del perfil del usuario
+              
               _buildProfileCard(),
               const SizedBox(height: 24),
-              // Sección que muestra estadísticas de cursos y progreso
+              
               _buildStatsSection(),
               const SizedBox(height: 24),
-              // Sección con información personal editable
+              
               _buildPersonalInfoSection(),
               const SizedBox(height: 24),
-              // Sección que muestra logros y certificaciones obtenidas
+              
               _buildAchievementsSection(),
               const SizedBox(height: 24),
-              // botón de cerrar sesión
+              
               _buildLogoutButton(),
             ],
           ),
@@ -64,7 +64,7 @@ class _AccountPageState extends State<AccountPage> {
       return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          // Superficie sólida en ambos temas
+          
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
@@ -81,7 +81,7 @@ class _AccountPageState extends State<AccountPage> {
         ),
         child: Column(
           children: [
-            // avatar
+            
             Container(
               width: 80,
               height: 80,
@@ -100,7 +100,7 @@ class _AccountPageState extends State<AccountPage> {
               ),
             ),
             const SizedBox(height: 16),
-            // nombre completo
+            
             Text(
               user != null ? '${user.firstName} ${user.lastName}' : 'Usuario',
               style: TextStyle(
@@ -110,7 +110,7 @@ class _AccountPageState extends State<AccountPage> {
               ),
             ),
             const SizedBox(height: 4),
-            // email
+            
             Text(
               user?.email ?? 'usuario@courseven.com',
               style: TextStyle(
@@ -120,7 +120,7 @@ class _AccountPageState extends State<AccountPage> {
               ),
             ),
             const SizedBox(height: 8),
-            // tipo de usuario
+            
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(

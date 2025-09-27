@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Course Students Page
+
 class CourseStudentsPage extends StatelessWidget {
   const CourseStudentsPage({super.key});
 

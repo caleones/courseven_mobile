@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Manage Categories Page
+
 class ManageCategoriesPage extends StatelessWidget {
   const ManageCategoriesPage({super.key});
 

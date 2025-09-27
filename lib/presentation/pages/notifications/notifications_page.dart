@@ -183,7 +183,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
       ),
       child: Stack(
         children: [
-          // Card base with outline
+          
           Material(
             color: Theme.of(context).cardColor,
             borderRadius: borderRadius,
@@ -209,7 +209,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // icono
+                    
                     Container(
                       width: 50,
                       height: 50,
@@ -220,7 +220,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       child: Icon(icon, color: color, size: 24),
                     ),
                     const SizedBox(width: 12),
-                    // contenido
+                    
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +300,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
             ),
           ),
-          // Left unread gold bar (drawn under content via Stack)
+          
           if (isUnread)
             Positioned.fill(
               child: Align(

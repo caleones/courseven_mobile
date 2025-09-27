@@ -1,19 +1,19 @@
-/// Entidad de dominio que representa una actividad asignada a una categoría
+
 class CourseActivity {
   final String id;
   final String title;
   final String? description;
   final String categoryId;
   final String courseId;
-  final String createdBy; // teacher id
+  final String createdBy; 
   final DateTime? dueDate;
   final DateTime createdAt;
   final bool isActive;
 
-  /// Indica si la actividad está en fase de peer review (habilitada por el profesor tras el due date)
+  
   final bool reviewing;
 
-  /// Visibilidad de los resultados del peer review para estudiantes: true = private, false = public
+  
   final bool privateReview;
 
   const CourseActivity({
@@ -27,7 +27,7 @@ class CourseActivity {
     required this.createdAt,
     this.isActive = true,
     this.reviewing = false,
-    this.privateReview = true,
+    this.privateReview = false,
   });
 
   CourseActivity copyWith({

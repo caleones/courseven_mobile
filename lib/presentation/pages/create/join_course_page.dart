@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/enrollment_controller.dart';
 import '../../theme/app_theme.dart';
+import '../../../core/config/app_routes.dart';
 
 class JoinCoursePage extends StatefulWidget {
   const JoinCoursePage({super.key});
@@ -66,13 +67,20 @@ class _JoinCoursePageState extends State<JoinCoursePage> {
                               final code = _codeController.text.trim();
                               final res = await controller.joinByCode(code);
                               if (res != null) {
+                                
                                 Get.snackbar(
                                   '¡Te uniste al curso!',
                                   'Inscripción creada correctamente',
                                   backgroundColor: AppTheme.goldAccent,
                                   colorText: AppTheme.premiumBlack,
+                                  duration: const Duration(seconds: 2),
                                 );
-                                Get.back();
+                                
+                                
+                                Future.delayed(
+                                    const Duration(milliseconds: 300), () {
+                                  Get.offAllNamed(AppRoutes.home);
+                                });
                               } else if (controller.errorMessage.isNotEmpty) {
                                 Get.snackbar('No se pudo unir',
                                     controller.errorMessage.value);

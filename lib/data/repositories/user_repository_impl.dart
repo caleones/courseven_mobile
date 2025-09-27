@@ -30,7 +30,7 @@ class UserRepositoryImpl implements UserRepository {
     return _fromMap(rows.first);
   }
 
-  // ===== Stubs for not-yet-needed methods =====
+  
   @override
   Future<User?> getUserByEmail(String email) async => null;
 

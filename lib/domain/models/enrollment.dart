@@ -1,4 +1,4 @@
-/// Entidad de dominio para representar la inscripción de un estudiante a un curso
+
 class Enrollment {
   final String id;
   final String studentId;
@@ -14,10 +14,10 @@ class Enrollment {
     this.isActive = true,
   });
 
-  /// Inscripción está activa
+  
   bool get isActiveEnrollment => isActive;
 
-  /// Crear copia de la inscripción con cambios
+  
   Enrollment copyWith({
     String? id,
     String? studentId,

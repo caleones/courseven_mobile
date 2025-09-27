@@ -1,4 +1,4 @@
-/// Entidad de dominio para representar la membresía de un usuario a un grupo
+
 class Membership {
   final String id;
   final String userId;
@@ -14,10 +14,10 @@ class Membership {
     this.isActive = true,
   });
 
-  /// Membresía está activa
+  
   bool get isActiveMembership => isActive;
 
-  /// Crear copia de la membresía con cambios
+  
   Membership copyWith({
     String? id,
     String? userId,

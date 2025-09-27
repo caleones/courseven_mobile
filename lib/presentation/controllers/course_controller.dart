@@ -12,12 +12,12 @@ class CourseController extends GetxController {
 
   CourseController(this._createCourseUseCase, this._courseRepository);
 
-  // Estado
+  
   final isLoading = false.obs;
   final errorMessage = ''.obs;
   final createdCourse = Rxn<Course>();
   final teacherCourses = <Course>[].obs;
-  // Cache reactivo por id para lecturas inmediatas
+  
   final coursesCache = <String, Course>{}.obs;
 
   AuthController get _auth => Get.find<AuthController>();
@@ -27,7 +27,7 @@ class CourseController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Si hay sesión, cargo cursos del profesor
+    
     if (currentTeacherId != null && currentTeacherId!.isNotEmpty) {
       loadMyTeachingCourses();
     }
@@ -62,8 +62,8 @@ class CourseController extends GetxController {
     }
   }
 
-  /// Obtiene un curso por id. Intenta primero del caché local
-  /// (teacherCourses) y si no está, consulta al repositorio.
+  
+  
   Future<Course?> getCourseById(String courseId) async {
     try {
       final cached = coursesCache[courseId];
@@ -103,7 +103,7 @@ class CourseController extends GetxController {
       final course = await _createCourseUseCase(params);
       createdCourse.value = course;
       coursesCache[course.id] = course;
-      // refrescar lista del profesor
+      
       await loadMyTeachingCourses();
       Get.snackbar(
         'Curso creado',
@@ -131,7 +131,7 @@ class CourseController extends GetxController {
 
   Future<Course?> updateCourse(Course course) async {
     try {
-      // Enforce that only the real course teacher can update
+      
       final myId = currentTeacherId;
       if (myId == null || myId.isEmpty || myId != course.teacherId) {
         errorMessage.value = 'No tienes permisos para editar este curso';
@@ -160,7 +160,7 @@ class CourseController extends GetxController {
 
   Future<bool> deleteCourse(String courseId) async {
     try {
-      // Enforce that only the real course teacher can delete (soft)
+      
       final course = await getCourseById(courseId);
       final myId = currentTeacherId;
       if (course == null ||
@@ -223,7 +223,7 @@ class CourseController extends GetxController {
       isLoading.value = true;
       final updated = await _courseRepository.setCourseActive(courseId, active);
       notifyCourseChanged(updated);
-      // Aseguramos refresco completo para que listas y conteos reaccionen
+      
       await loadMyTeachingCourses();
       Get.snackbar(
         active ? 'Curso habilitado' : 'Curso deshabilitado',
@@ -251,10 +251,10 @@ class CourseController extends GetxController {
     }
   }
 
-  /// Helper para centralizar la verificación de si un curso está activo
-  /// antes de crear entidades (actividades, categorías, grupos, etc.).
-  /// Retorna true si el curso está activo o no se pudo determinar (prefiere permitir en duda),
-  /// y muestra un snackbar y retorna false si está inactivo.
+  
+  
+  
+  
   Future<bool> ensureCourseActiveOrWarn(
       String courseId, String entityLabel) async {
     try {
@@ -269,13 +269,13 @@ class CourseController extends GetxController {
         );
         return false;
       }
-      return true; // si no se encontró el curso, no bloquear estrictamente
+      return true; 
     } catch (_) {
-      return true; // en caso de error silencioso no bloquear
+      return true; 
     }
   }
 
-  /// Actualiza caches y lista reactiva tras un cambio de curso.
+  
   void notifyCourseChanged(Course updated) {
     coursesCache[updated.id] = updated;
     final idx = teacherCourses.indexWhere((c) => c.id == updated.id);
@@ -283,7 +283,7 @@ class CourseController extends GetxController {
       teacherCourses[idx] = updated;
       teacherCourses.refresh();
     }
-    // También actualizar EnrollmentController si está presente
+    
     if (Get.isRegistered<EnrollmentController>()) {
       final enrollCtrl = Get.find<EnrollmentController>();
       enrollCtrl.overrideCourseTitle(updated.id, updated.name);

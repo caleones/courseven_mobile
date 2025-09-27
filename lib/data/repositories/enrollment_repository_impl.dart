@@ -37,7 +37,7 @@ class EnrollmentRepositoryImpl implements EnrollmentRepository {
     if (record['_id'] == null || (record['_id'] as String).isEmpty) {
       record.remove('_id');
     }
-    // add default status if not present
+    
     record['status'] = record['status'] ?? 'active';
     final res =
         await _service.insertEnrollment(accessToken: token, record: record);
@@ -68,8 +68,10 @@ class EnrollmentRepositoryImpl implements EnrollmentRepository {
   @override
   Future<List<Enrollment>> getEnrollmentsByCourse(String courseId) async {
     final token = await _requireToken();
-    final rows = await _service
-        .readEnrollments(accessToken: token, query: {'course_id': courseId});
+    final rows = await _service.readEnrollments(accessToken: token, query: {
+      'course_id': courseId,
+      'is_active': 'true',
+    });
     return rows.map(_fromMap).toList(growable: false);
   }
 
@@ -85,7 +87,7 @@ class EnrollmentRepositoryImpl implements EnrollmentRepository {
     return rows.isNotEmpty;
   }
 
-  // ===== Not required now / stubs =====
+  
   @override
   Future<bool> deleteEnrollment(String enrollmentId) async {
     throw UnimplementedError();
@@ -107,14 +109,42 @@ class EnrollmentRepositoryImpl implements EnrollmentRepository {
 
   @override
   Future<Enrollment> updateEnrollment(Enrollment enrollment) async {
-    throw UnimplementedError();
+    final token = await _requireToken();
+    if (enrollment.id.isEmpty) {
+      throw Exception('updateEnrollment requiere _id');
+    }
+    final updates = {
+      'user_id': enrollment.studentId,
+      'course_id': enrollment.courseId,
+      'enrolled_at': enrollment.enrolledAt.toIso8601String(),
+      'is_active': enrollment.isActive,
+    };
+    final res = await _service.updateRow(
+      accessToken: token,
+      table: 'enrollments',
+      id: enrollment.id,
+      updates: updates,
+    );
+    
+    Map<String, dynamic>? updated;
+    if (res['updated'] is List && (res['updated'] as List).isNotEmpty) {
+      updated = (res['updated'] as List).first as Map<String, dynamic>;
+    } else if (res['data'] is Map<String, dynamic>) {
+      updated = res['data'] as Map<String, dynamic>;
+    } else {
+      
+      updated = res.cast<String, dynamic>();
+    }
+    return _fromMap(updated);
   }
 
   @override
   Future<int> getEnrollmentCountByCourse(String courseId) async {
     final token = await _requireToken();
-    final rows = await _service
-        .readEnrollments(accessToken: token, query: {'course_id': courseId});
+    final rows = await _service.readEnrollments(accessToken: token, query: {
+      'course_id': courseId,
+      'is_active': 'true',
+    });
     return rows.length;
   }
 

@@ -8,8 +8,8 @@ import '../pages/settings/settings_page.dart';
 import '../pages/notifications/notifications_page.dart';
 
 class BottomNavigationDock extends StatelessWidget {
-  final int currentIndex; // -1 => ninguno seleccionado
-  // indicador de si hay notificaciones nuevas (punto)
+  final int currentIndex; 
+  
   final bool hasNewNotifications;
 
   const BottomNavigationDock({
@@ -61,7 +61,7 @@ class BottomNavigationDock extends StatelessWidget {
               }
             },
           ),
-          // botón de notificaciones dentro del dock (navega a screen)
+          
           _buildNotificationsItem(context: context, index: 2),
           _buildNavItem(
             context: context,
@@ -117,7 +117,7 @@ class BottomNavigationDock extends StatelessWidget {
     );
   }
 
-  // Item especial de notificaciones con punto indicador y tooltip
+  
   Widget _buildNotificationsItem(
       {required BuildContext context, required int index}) {
     final isSelected = index == currentIndex;

@@ -12,8 +12,8 @@ class ActivityController extends GetxController {
   final GroupRepository _groupRepository;
   final MembershipRepository _membershipRepository;
   final CourseActivityRepository _activityRepository;
-  // We also need repo to create activities; use DI to inject via use case existing repos
-  // but for simplicity, we'll reuse the CourseActivityRepository through a lite facade
+  
+  
 
   ActivityController(
     this._getActivities,
@@ -34,28 +34,30 @@ class ActivityController extends GetxController {
     if (userId == null || userId.isEmpty) return;
     try {
       isLoading.value = true;
-      // Si el usuario es profesor del curso, cargamos todas las actividades del curso
+      
       final course = await Get.find<CourseController>().getCourseById(courseId);
       List<CourseActivity> list;
       if (course != null && course.teacherId == userId) {
         list = await _activityRepository.getActivitiesByCourse(courseId);
-        // DEBUG LOG
-        // ignore: avoid_print
+        
+        
         print(
             '[ACTIVITY_CONTROLLER] Profesor: cargadas ${list.length} actividades para curso $courseId');
       } else {
         list = await _getActivities(GetCourseActivitiesForStudentParams(
             courseId: courseId, userId: userId));
-        // ignore: avoid_print
+        
         print(
             '[ACTIVITY_CONTROLLER] Estudiante: cargadas ${list.length} actividades visibles para curso $courseId');
       }
       for (final a in list) {
-        // ignore: avoid_print
+        
         print(
             '[ACTIVITY_CONTROLLER] Activity -> id=${a.id} title="${a.title}" active=${a.isActive} reviewing=${a.reviewing} due=${a.dueDate}');
       }
       activitiesByCourse[courseId] = list;
+      
+      activitiesByCourse.refresh();
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {
@@ -66,14 +68,14 @@ class ActivityController extends GetxController {
 
   List<CourseActivity> previewForCourse(String courseId, [int take = 3]) {
     final list = activitiesByCourse[courseId] ?? const [];
-    // No aplicar filtros adicionales; solo ordenar por createdAt desc para que la más reciente aparezca primero
+    
     final sorted = [...list]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return sorted.take(take).toList();
   }
 
-  /// Encuentra (de forma perezosa) el nombre del grupo del usuario a través del cual recibe la actividad.
-  /// Busca una membresía del usuario en la categoría de la actividad y devuelve el nombre del grupo.
+  
+  
   Future<String?> resolveMyGroupNameForActivity(CourseActivity a) async {
     final userId = currentUserId;
     if (userId == null) return null;
@@ -93,7 +95,7 @@ class ActivityController extends GetxController {
     try {
       isLoading.value = true;
       final created = await _activityRepository.createActivity(activity);
-      // refresh cache
+      
       await loadForCourse(created.courseId);
       return created;
     } catch (e) {
@@ -135,15 +137,15 @@ class ActivityController extends GetxController {
     }
   }
 
-  /// Activa el peer review para una actividad (solo profesor y después del dueDate)
-  /// isPrivate: true para private, false para public
+  
+  
   Future<CourseActivity?> requestPeerReview({
     required String activityId,
-    bool isPrivate = true,
+    bool isPrivate = false, 
   }) async {
     try {
       isLoading.value = true;
-      // localizar actividad actual
+      
       CourseActivity? activity;
       activitiesByCourse.forEach((_, list) {
         for (final a in list) {
@@ -153,26 +155,26 @@ class ActivityController extends GetxController {
       activity ??= await _activityRepository.getActivityById(activityId);
       if (activity == null) throw Exception('Actividad no encontrada');
 
-      // Validar rol profesor del curso
+      
       final course =
           await Get.find<CourseController>().getCourseById(activity!.courseId);
       final userId = currentUserId;
       if (course == null || userId == null || course.teacherId != userId) {
         throw Exception('No autorizado para activar peer review');
       }
-      // DEBUG OVERRIDE: permitir activación antes de due date para pruebas.
-      // Lógica original comentada temporalmente:
-      // if (activity!.dueDate == null || DateTime.now().isBefore(activity!.dueDate!)) {
-      //   throw Exception('La actividad aún no ha pasado su due date');
-      // }
-      // Ya activo?
+      
+      
+      
+      
+      
+      
       if (activity!.reviewing) {
-        // Permitir cambiar visibilidad private->public
+        
         if (activity!.privateReview && !isPrivate) {
           final updated = activity!.copyWith(privateReview: false);
           return await updateActivity(updated);
         }
-        return activity; // nada que hacer
+        return activity; 
       }
       final updated =
           activity!.copyWith(reviewing: true, privateReview: isPrivate);

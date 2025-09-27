@@ -14,19 +14,27 @@ import '../../presentation/pages/learning/category_groups_page.dart';
 import '../../presentation/pages/learning/course_activities_page.dart';
 import '../../presentation/pages/create/activity_create_page.dart';
 import '../../presentation/pages/edit/course_edit_page.dart';
-// NEW detail & edit pages
+
 import '../../presentation/pages/learning/activity_detail_page.dart';
 import '../../presentation/pages/edit/activity_edit_page.dart';
 import '../../presentation/pages/learning/category_detail_page.dart';
 import '../../presentation/pages/edit/category_edit_page.dart';
+import '../../presentation/pages/learning/group_detail_page.dart';
+import '../../presentation/pages/edit/group_edit_page.dart';
 import '../../presentation/pages/learning/course_students_page.dart';
+import '../../presentation/pages/learning/student_detail_page.dart';
 import '../../presentation/pages/learning/category_activities_page.dart';
 import '../../presentation/pages/peer_review/peer_review_list_page.dart';
 import '../../presentation/pages/peer_review/peer_review_evaluate_page.dart';
 import '../../presentation/pages/peer_review/group_peer_review_summary_page.dart';
 import '../../presentation/pages/peer_review/course_peer_review_summary_page.dart';
+import '../../presentation/pages/peer_review/activity_peer_review_results_page.dart';
+import '../../presentation/pages/peer_review/group_peer_review_results_page.dart';
+import '../../presentation/pages/peer_review/student_peer_review_results_page.dart';
+import '../../presentation/pages/peer_review/assessment_detail_page.dart';
+import '../../presentation/pages/peer_review/student_own_peer_review_results_page.dart';
+import '../../presentation/pages/peer_review/student_course_peer_results_page.dart';
 
-// todas las rutas de navegación de la app
 class AppRoutes {
   static const String login = '/login';
   static const String emailVerification = '/email-verification';
@@ -47,12 +55,24 @@ class AppRoutes {
   static const String activityEdit = '/activity-edit';
   static const String categoryDetail = '/category-detail';
   static const String categoryEdit = '/category-edit';
+  static const String groupDetail = '/group-detail';
+  static const String groupEdit = '/group-edit';
   static const String courseStudents = '/course-students';
+  static const String studentDetail = '/student-detail';
   static const String categoryActivities = '/category-activities';
   static const String peerReviewList = '/peer-review-list';
   static const String peerReviewEvaluate = '/peer-review-evaluate';
   static const String peerReviewGroupSummary = '/peer-review-group-summary';
   static const String peerReviewCourseSummary = '/peer-review-course-summary';
+
+  static const String activityPeerReviewResults =
+      '/activity-peer-review-results';
+  static const String groupPeerReviewResults = '/group-peer-review-results';
+  static const String studentPeerReviewResults = '/student-peer-review-results';
+  static const String assessmentDetail = '/assessment-detail';
+  static const String studentPeerReviewOwnResults =
+      '/student-peer-review-own-results';
+  static const String studentCoursePeerResults = '/student-course-peer-results';
 
   static List<GetPage> routes = [
     GetPage(name: login, page: () => const LoginPage()),
@@ -74,11 +94,20 @@ class AppRoutes {
     GetPage(name: activityEdit, page: () => const ActivityEditPage()),
     GetPage(name: categoryDetail, page: () => const CategoryDetailPage()),
     GetPage(name: categoryEdit, page: () => const CategoryEditPage()),
-    // Students listing for a course
+    GetPage(name: groupDetail, page: () => const GroupDetailPage()),
+    GetPage(name: groupEdit, page: () => const GroupEditPage()),
     GetPage(name: courseStudents, page: () => const CourseStudentsPage()),
     GetPage(
+        name: studentDetail,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return StudentDetailPage(
+            courseId: args['courseId'] ?? '',
+            studentId: args['studentId'] ?? '',
+          );
+        }),
+    GetPage(
         name: categoryActivities, page: () => const CategoryActivitiesPage()),
-    // Peer Review
     GetPage(name: peerReviewList, page: () => const PeerReviewListPage()),
     GetPage(
         name: peerReviewEvaluate, page: () => const PeerReviewEvaluatePage()),
@@ -86,8 +115,13 @@ class AppRoutes {
         name: peerReviewGroupSummary,
         page: () {
           final args = Get.arguments as Map? ?? {};
-          return GroupPeerReviewSummaryPage(
-              activityId: args['activityId'] ?? '');
+          return GroupCoursePeerResultsPage(
+            courseId: args['courseId'] ?? '',
+            groupId: args['groupId'] ?? '',
+            activityIds:
+                (args['activityIds'] as List?)?.cast<String>() ?? const [],
+            groupName: args['groupName'] as String?,
+          );
         }),
     GetPage(
         name: peerReviewCourseSummary,
@@ -97,6 +131,64 @@ class AppRoutes {
             courseId: args['courseId'] ?? '',
             activityIds:
                 (args['activityIds'] as List?)?.cast<String>() ?? const [],
+          );
+        }),
+    GetPage(
+        name: activityPeerReviewResults,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return ActivityPeerReviewResultsPage(
+            courseId: args['courseId'] ?? '',
+            activityId: args['activityId'] ?? '',
+          );
+        }),
+    GetPage(
+        name: groupPeerReviewResults,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return GroupPeerReviewResultsPage(
+            courseId: args['courseId'] ?? '',
+            activityId: args['activityId'] ?? '',
+            groupId: args['groupId'] ?? '',
+          );
+        }),
+    GetPage(
+        name: studentPeerReviewResults,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return StudentPeerReviewResultsPage(
+            courseId: args['courseId'] ?? '',
+            activityId: args['activityId'] ?? '',
+            groupId: args['groupId'] ?? '',
+            studentId: args['studentId'] ?? '',
+          );
+        }),
+    GetPage(
+        name: assessmentDetail,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return AssessmentDetailPage(
+            courseId: args['courseId'] ?? '',
+            activityId: args['activityId'] ?? '',
+            assessmentId: args['assessmentId'] ?? '',
+          );
+        }),
+    GetPage(
+        name: studentPeerReviewOwnResults,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return StudentOwnPeerReviewResultsPage(
+            courseId: args['courseId'] ?? '',
+            activityId: args['activityId'] ?? '',
+          );
+        }),
+    GetPage(
+        name: studentCoursePeerResults,
+        page: () {
+          final args = Get.arguments as Map? ?? {};
+          return StudentCoursePeerResultsPage(
+            courseId: args['courseId'] ?? '',
+            studentId: args['studentId'] ?? '',
           );
         }),
   ];

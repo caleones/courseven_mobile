@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/theme_controller.dart';
 import '../../widgets/bottom_navigation_dock.dart';
@@ -9,6 +10,9 @@ import '../../controllers/course_controller.dart';
 import '../../controllers/enrollment_controller.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../domain/use_cases/course/create_course_use_case.dart';
+import '../../widgets/revalidation_mixin.dart';
+import '../../../core/utils/refresh_manager.dart';
+import '../../../core/utils/app_event_bus.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,21 +21,57 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with RevalidationMixin {
   final AuthController authController = Get.find<AuthController>();
   final ThemeController themeController = Get.find<ThemeController>();
   final CourseController courseController = Get.find<CourseController>();
   final EnrollmentController enrollmentController =
       Get.find<EnrollmentController>();
   int _selectedIndex = 0;
+  late final AppEventBus _bus;
+  StreamSubscription<Object>? _sub;
 
   @override
   void initState() {
     super.initState();
-    // Intento proactivo de cargar cursos del profesor
+    
     courseController.loadMyTeachingCourses();
-    // y mis inscripciones
+    
     enrollmentController.loadMyEnrollments();
+    _bus = Get.find<AppEventBus>();
+    _sub = _bus.stream.listen((event) {
+      if (event is EnrollmentJoinedEvent) {
+        revalidate(force: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Duration? get pollingInterval => const Duration(seconds: 60);
+
+  @override
+  Future<void> revalidate({bool force = false}) async {
+    final refresh = Get.find<RefreshManager>();
+    await Future.wait([
+      refresh.run(
+        key: 'home:teaching',
+        ttl: const Duration(seconds: 45),
+        action: () => courseController.loadMyTeachingCourses(),
+        force: force,
+      ),
+      refresh.run(
+        key: 'home:learning',
+        ttl: const Duration(seconds: 45),
+        action: () => enrollmentController.loadMyEnrollments(),
+        force: force,
+      ),
+    ]);
   }
 
   @override
@@ -82,7 +122,7 @@ class _HomePageState extends State<HomePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        // Usar superficie sólida en ambos temas
+        
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
@@ -213,7 +253,7 @@ class _HomePageState extends State<HomePage> {
             if (active.isEmpty)
               _buildEmptyTeachingState()
             else ...[
-              // Activos primero
+              
               ...active.map((c) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: InkWell(
@@ -231,7 +271,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   )),
-              // Regla de negocio: NO mostrar cursos inactivos en home.
+              
             ],
           ],
           const SizedBox(height: 8),
@@ -245,7 +285,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildTeacherAllCoursesTile(int total, int inactiveCount) {
     return InkWell(
       onTap: () {
-        // Navegar a la pantalla unificada con modo docente
+        
         Get.toNamed(AppRoutes.allCourses, arguments: {'mode': 'teaching'});
       },
       borderRadius: BorderRadius.circular(16),
@@ -318,7 +358,7 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Row(
         children: [
-          // Simple emoji/placeholder for tumbleweed/cobweb
+          
           Text('🕸️', style: TextStyle(fontSize: 36, color: onSurface)),
           const SizedBox(width: 12),
           Expanded(
@@ -381,7 +421,11 @@ class _HomePageState extends State<HomePage> {
           else if (list.isEmpty)
             _buildEmptyLearningState()
           else
-            ...list.map((e) {
+            
+            ...list.where((e) {
+              final course = courseController.coursesCache[e.courseId];
+              return course == null || course.isActive; 
+            }).map((e) {
               final title = enrollmentController.getCourseTitle(e.courseId);
               final teacher =
                   enrollmentController.getCourseTeacherName(e.courseId);
@@ -402,27 +446,8 @@ class _HomePageState extends State<HomePage> {
                     Get.toNamed(AppRoutes.courseDetail,
                         arguments: {'courseId': e.courseId});
                   },
-                  trailingPill: isInactive
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.dangerRed.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(20),
-                            border:
-                                Border.all(color: AppTheme.dangerRed, width: 1),
-                          ),
-                          child: const Text(
-                            'INACTIVO',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.4,
-                              color: AppTheme.dangerRed,
-                            ),
-                          ),
-                        )
-                      : null,
+                  
+                  trailingPill: null,
                 ),
               );
             }),
@@ -524,7 +549,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Removed old _buildCourseCard with progress; using _buildLearningCourseTile instead.
+  
 
   Widget _buildLearningCourseTile({
     required String title,
@@ -809,7 +834,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // (Eliminado) Fabs verticales; ahora se navega a CreateOptionsPage con el +
+  
 
   Widget _buildPlaceholderContent() {
     return Center(
@@ -844,5 +869,5 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// Widget interno: FAB expandible horizontal con cierre al tocar fuera
-// (Eliminado) Expandable FAB y pills: reemplazado por 3 FABs verticales
+
+

@@ -1,16 +1,16 @@
-/// Domain entity representing a single peer assessment (one reviewer -> one peer) for an activity within a group.
+
 class Assessment {
   final String id;
   final String activityId;
   final String groupId;
-  final String reviewerId; // who evaluates
-  final String studentId; // evaluated peer
-  final int punctualityScore; // 2,3,4,5
-  final int contributionsScore; // 2,3,4,5
-  final int commitmentScore; // 2,3,4,5
-  final int attitudeScore; // 2,3,4,5
+  final String reviewerId; 
+  final String studentId; 
+  final int punctualityScore; 
+  final int contributionsScore; 
+  final int commitmentScore; 
+  final int attitudeScore; 
   final double?
-      overallScorePersisted; // optional if backend stores overall_score
+      overallScorePersisted; 
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -29,7 +29,7 @@ class Assessment {
     this.updatedAt,
   });
 
-  /// Overall score: if persisted value exists, prefer it; else compute average of the four criteria.
+  
   double get overallScore {
     if (overallScorePersisted != null) return overallScorePersisted!;
     final avg = (punctualityScore +

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import '../../../core/config/app_routes.dart';
 import '../../controllers/activity_controller.dart';
 import '../../controllers/category_controller.dart';
@@ -8,6 +9,12 @@ import '../../widgets/course/course_ui_components.dart';
 import '../../theme/app_theme.dart';
 import '../../controllers/peer_review_controller.dart';
 import '../../../domain/models/course_activity.dart';
+import '../../../domain/repositories/assessment_repository.dart';
+import '../../../domain/repositories/membership_repository.dart';
+import '../../../domain/repositories/group_repository.dart';
+import '../../widgets/revalidation_mixin.dart';
+import '../../../core/utils/refresh_manager.dart';
+import '../../../core/utils/app_event_bus.dart';
 
 class ActivityDetailPage extends StatefulWidget {
   const ActivityDetailPage({super.key});
@@ -15,13 +22,18 @@ class ActivityDetailPage extends StatefulWidget {
   State<ActivityDetailPage> createState() => _ActivityDetailPageState();
 }
 
-class _ActivityDetailPageState extends State<ActivityDetailPage> {
+class _ActivityDetailPageState extends State<ActivityDetailPage>
+    with RevalidationMixin {
   late final String courseId;
   late final String activityId;
   final activityController = Get.find<ActivityController>();
   final categoryController = Get.find<CategoryController>();
   final courseController = Get.find<CourseController>();
   PeerReviewController? _peerReviewController;
+  late final AppEventBus _bus;
+  StreamSubscription<Object>? _sub;
+
+  final Set<String> _prLoaded = <String>{};
 
   @override
   void initState() {
@@ -30,14 +42,26 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
     courseId = args?['courseId'] ?? '';
     activityId = args?['activityId'] ?? '';
     if (courseId.isNotEmpty) {
-      activityController.loadForCourse(courseId); // ensure cache
+      activityController.loadForCourse(courseId);
       categoryController.loadByCourse(courseId);
     }
-    // Lazy find peer review controller if está registrado en bindings
+    _bus = Get.find<AppEventBus>();
+    _sub = _bus.stream.listen((event) {
+      if (event is ActivityChangedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+    });
+
     try {
       _peerReviewController = Get.find<PeerReviewController>();
     } catch (_) {
-      // ignorar si no está disponible
+      try {
+        final assessmentRepo = Get.find<AssessmentRepository>();
+        final membershipRepo = Get.find<MembershipRepository>();
+        final groupRepo = Get.find<GroupRepository>();
+        _peerReviewController = Get.put(
+            PeerReviewController(assessmentRepo, membershipRepo, groupRepo));
+      } catch (_) {}
     }
   }
 
@@ -61,6 +85,29 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
           ? activity.description!.trim()
           : 'Sin descripción';
 
+      _ensurePeerReviewLoaded(activity);
+
+      final sections = <Widget>[
+        _metaRow(category?.name, dueText, activity.isActive),
+        _descriptionCard(description),
+      ];
+
+      if (isTeacher) {
+        sections.add(_teacherPeerReviewCard(activity));
+        sections.add(const SizedBox(height: 12));
+        sections.add(_teacherRequestButton(activity));
+        if (activity.reviewing) {
+          sections.add(const SizedBox(height: 12));
+          sections.add(_teacherResultsButton(activity));
+        }
+      } else {
+        sections.add(_studentPeerReviewCard(activity));
+        if (activity.reviewing) {
+          sections.add(const SizedBox(height: 12));
+          sections.add(_studentResultsButton(activity));
+        }
+      }
+
       return CoursePageScaffold(
         header: CourseHeader(
           title: activity.title,
@@ -72,15 +119,47 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
                   arguments: {'courseId': courseId, 'activityId': activity.id})
               : null,
         ),
-        sections: [
-          _metaRow(category?.name, dueText, activity.isActive),
-          _descriptionCard(description),
-          if (isTeacher) _teacherPeerReviewCard(activity),
-          if (!isTeacher) _studentPeerReviewCard(activity),
-          if (isTeacher && activity.reviewing) _teacherSummarySection(activity),
-        ],
+        sections: sections,
       );
     });
+  }
+
+  void _ensurePeerReviewLoaded(CourseActivity activity) {
+    if (_peerReviewController == null) return;
+    if (!activity.reviewing) return;
+    if (_prLoaded.contains(activity.id)) return;
+    _prLoaded.add(activity.id);
+
+    _peerReviewController!.loadForActivity(activity);
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Duration? get pollingInterval => const Duration(seconds: 60);
+
+  @override
+  Future<void> revalidate({bool force = false}) async {
+    if (courseId.isEmpty) return;
+    final refresh = Get.find<RefreshManager>();
+    await Future.wait([
+      refresh.run(
+        key: 'activities:course:$courseId',
+        ttl: const Duration(seconds: 20),
+        action: () => activityController.loadForCourse(courseId),
+        force: force,
+      ),
+      refresh.run(
+        key: 'categories:course:$courseId',
+        ttl: const Duration(seconds: 45),
+        action: () => categoryController.loadByCourse(courseId),
+        force: force,
+      ),
+    ]);
   }
 
   Widget _metaRow(String? categoryName, String dueText, bool isActive) {
@@ -238,13 +317,7 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Widget _teacherPeerReviewCard(CourseActivity activity) {
-    // DEBUG OVERRIDE: permitir activar peer review incluso antes del due date.
-    // Lógica original (restaurar cuando termine fase de pruebas):
-    // final canActivate = !activity.reviewing &&
-    //     activity.dueDate != null &&
-    //     DateTime.now().isAfter(activity.dueDate!);
-    final canActivate = !activity.reviewing; // debug
-    final changingToPublic = activity.reviewing && activity.privateReview;
+    final canActivate = !activity.reviewing;
     return Card(
       margin: const EdgeInsets.only(top: 20),
       child: Padding(
@@ -257,32 +330,33 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
             const SizedBox(height: 8),
             Text(activity.reviewing
                 ? 'Estado: Activo (${activity.privateReview ? 'Resultados privados' : 'Resultados públicos'})'
-                : 'Aún no activado. (DEBUG: se permite activar antes del due date)'),
-            const SizedBox(height: 12),
-            Row(children: [
-              ElevatedButton(
-                onPressed: canActivate
-                    ? () async {
-                        final isPrivate = await _pickVisibility();
-                        if (isPrivate == null) return;
-                        await activityController.requestPeerReview(
-                            activityId: activity.id, isPrivate: isPrivate);
-                      }
-                    : null,
-                child: const Text('Activar Peer Review'),
+                : 'Aún no activado.'),
+            if (!canActivate)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                    'Puedes solicitar revisión cuando quieras ajustar la visibilidad.'),
               ),
-              const SizedBox(width: 12),
-              if (changingToPublic)
-                OutlinedButton(
-                  onPressed: () async {
-                    await activityController.requestPeerReview(
-                        activityId: activity.id, isPrivate: false);
-                  },
-                  child: const Text('Hacer Públicos'),
-                ),
-            ])
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _teacherRequestButton(CourseActivity activity) {
+    final canActivate = !activity.reviewing;
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        onPressed: canActivate
+            ? () async {
+                final isPrivate = await _pickVisibility();
+                if (isPrivate == null) return;
+                await activityController.requestPeerReview(
+                    activityId: activity.id, isPrivate: isPrivate);
+              }
+            : null,
+        child: const Text('SOLICITAR REVISIÓN'),
       ),
     );
   }
@@ -307,89 +381,68 @@ class _ActivityDetailPageState extends State<ActivityDetailPage> {
   }
 
   Widget _studentPeerReviewCard(CourseActivity activity) {
-    if (_peerReviewController == null) return const SizedBox.shrink();
-    final pr = _peerReviewController!;
-    final progress = pr.progressFor(activity.id);
-    final canReview = pr.canStudentReview(activity,
-        isMemberOfGroup: true); // TODO: integrar verificación real de membresía
     if (!activity.reviewing) return const SizedBox.shrink();
     return Card(
       margin: const EdgeInsets.only(top: 20),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            const Text('Peer Review',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 8),
-            if (!canReview)
-              const Text(
-                  'No eres elegible para realizar peer review en esta actividad.'),
-            if (canReview)
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                        'Progreso: ${(progress['done'] ?? 0)} / ${(progress['total'] ?? 0)}'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Get.toNamed(AppRoutes.peerReviewList, arguments: {
-                        'courseId': courseId,
-                        'activityId': activity.id,
-                      });
-                    },
-                    child: const Text('Revisar'),
-                  )
-                ],
-              ),
+            Expanded(
+              child: Text('Peer Review',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Get.toNamed(AppRoutes.peerReviewList, arguments: {
+                  'courseId': courseId,
+                  'activityId': activity.id,
+                });
+              },
+              child: const Text('CALIFICAR'),
+            )
           ],
         ),
       ),
     );
   }
 
-  Widget _teacherSummarySection(CourseActivity activity) {
-    if (_peerReviewController == null) return const SizedBox.shrink();
-    final pr = _peerReviewController!;
-    final summary = pr.activitySummary(activity.id);
-    return Obx(() {
-      final loading = pr.isLoading.value && summary == null;
-      return Card(
-        margin: const EdgeInsets.only(top: 20),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : summary == null
-                  ? const Text('Aún no hay evaluaciones.')
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Resumen Peer Review',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 16)),
-                        const SizedBox(height: 12),
-                        Text(
-                            'Promedio Actividad (Overall): ${summary.activityAverages.overall.toStringAsFixed(2)}'),
-                        const SizedBox(height: 8),
-                        ...summary.groups.map((g) => ExpansionTile(
-                              title: Text(
-                                  'Grupo ${g.groupId} - Avg ${g.averages.overall.toStringAsFixed(2)}'),
-                              children: g.students
-                                  .map((s) => ListTile(
-                                        title:
-                                            Text('Estudiante ${s.studentId}'),
-                                        subtitle: Text(
-                                            'Overall ${s.averages.overall.toStringAsFixed(2)} | P:${s.averages.punctuality.toStringAsFixed(2)} C:${s.averages.contributions.toStringAsFixed(2)} Cm:${s.averages.commitment.toStringAsFixed(2)} A:${s.averages.attitude.toStringAsFixed(2)}'),
-                                      ))
-                                  .toList(),
-                            ))
-                      ],
-                    ),
-        ),
-      );
-    });
+  Widget _teacherResultsButton(CourseActivity activity) {
+    if (!activity.reviewing) return const SizedBox.shrink();
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () {
+          Get.toNamed(AppRoutes.activityPeerReviewResults, arguments: {
+            'courseId': courseId,
+            'activityId': activity.id,
+          });
+        },
+        icon: const Icon(Icons.bar_chart),
+        label: const Text('RESULTADOS'),
+      ),
+    );
+  }
+
+  Widget _studentResultsButton(CourseActivity activity) {
+    if (!activity.reviewing || activity.privateReview) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () {
+          Get.toNamed(AppRoutes.studentPeerReviewOwnResults, arguments: {
+            'courseId': courseId,
+            'activityId': activity.id,
+          });
+        },
+        icon: const Icon(Icons.visibility),
+        label: const Text('MIS RESULTADOS'),
+      ),
+    );
   }
 }

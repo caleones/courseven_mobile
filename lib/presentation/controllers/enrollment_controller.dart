@@ -8,6 +8,7 @@ import '../../domain/repositories/course_repository.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../domain/repositories/enrollment_repository.dart';
 import '../controllers/auth_controller.dart';
+import '../../core/utils/app_event_bus.dart';
 
 class EnrollmentController extends GetxController {
   final EnrollToCourseUseCase _enrollToCourse;
@@ -20,18 +21,14 @@ class EnrollmentController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
   final myEnrollments = <Enrollment>[].obs;
-  // Enrichment caches
+
   final Map<String, Course> _courses = {};
   final Map<String, User> _users = {};
 
-  // Teacher-side / course-centric data (counts + listings)
-  final enrollmentCounts = <String, int>{}.obs; // courseId -> count
-  final enrollmentsByCourse =
-      <String, List<Enrollment>>{}.obs; // courseId -> list
-  final _loadingCourseIds =
-      <String>{}.obs; // courseIds currently loading full list
-  final _loadingCountCourseIds =
-      <String>{}.obs; // courseIds currently loading count only
+  final enrollmentCounts = <String, int>{}.obs;
+  final enrollmentsByCourse = <String, List<Enrollment>>{}.obs;
+  final _loadingCourseIds = <String>{}.obs;
+  final _loadingCountCourseIds = <String>{}.obs;
 
   AuthController get _auth => Get.find<AuthController>();
   String? get currentUserId => _auth.currentUser?.id;
@@ -43,7 +40,7 @@ class EnrollmentController extends GetxController {
       isLoading.value = true;
       final list = await _getMyEnrollments(userId);
       myEnrollments.assignAll(list);
-      // Enrich: prefetch course and teacher for display
+
       for (final e in list) {
         if (!_courses.containsKey(e.courseId)) {
           final c = await _courseRepository.getCourseById(e.courseId);
@@ -58,7 +55,7 @@ class EnrollmentController extends GetxController {
       update();
     } catch (e) {
       final errorMsg = e.toString();
-      // Handle specific 401 error case
+
       if (errorMsg.contains('401') ||
           errorMsg.toLowerCase().contains('unauthorized')) {
         await _handleAuthError();
@@ -81,8 +78,15 @@ class EnrollmentController extends GetxController {
       final created = await _enrollToCourse(
         EnrollToCourseParams(userId: userId, joinCode: joinCode.trim()),
       );
-      // refresh list
+
       await loadMyEnrollments();
+
+      try {
+        if (Get.isRegistered<AppEventBus>()) {
+          Get.find<AppEventBus>()
+              .publish(EnrollmentJoinedEvent(created.courseId));
+        }
+      } catch (_) {}
       return created;
     } catch (e) {
       errorMessage.value = e.toString();
@@ -93,7 +97,6 @@ class EnrollmentController extends GetxController {
     }
   }
 
-  // Accessors for UI binding
   String getCourseTitle(String courseId) => _courses[courseId]?.name ?? 'Curso';
   String getCourseTeacherName(String courseId) {
     final tId = _courses[courseId]?.teacherId;
@@ -102,7 +105,6 @@ class EnrollmentController extends GetxController {
     return u != null ? '${u.firstName} ${u.lastName}' : '';
   }
 
-  /// Permite actualizar el título de un curso en caché (ej. después de habilitar o renombrar).
   void overrideCourseTitle(String courseId, String newTitle) {
     final existing = _courses[courseId];
     if (existing != null) {
@@ -110,8 +112,6 @@ class EnrollmentController extends GetxController {
       update();
     }
   }
-
-  // ================= Course-centric (teacher or viewer) helpers =================
 
   bool isLoadingCourse(String courseId) => _loadingCourseIds.contains(courseId);
   bool isLoadingCount(String courseId) =>
@@ -151,8 +151,8 @@ class EnrollmentController extends GetxController {
       final repo = Get.find<EnrollmentRepository>();
       final list = await repo.getEnrollmentsByCourse(courseId);
       enrollmentsByCourse[courseId] = list;
-      enrollmentCounts[courseId] = list.length; // keep count in sync
-      // Prefetch user metadata for each enrollment (students)
+      enrollmentCounts[courseId] = list.length;
+
       for (final e in list) {
         if (!_users.containsKey(e.studentId)) {
           final u = await _userRepository.getUserById(e.studentId);
@@ -169,23 +169,47 @@ class EnrollmentController extends GetxController {
 
   String userName(String userId) {
     final u = _users[userId];
-    if (u == null) return 'Estudiante';
+    if (u == null) {
+      return userId.isNotEmpty ? userId : 'Sin nombre';
+    }
     final parts =
         [u.firstName, u.lastName].where((p) => p.trim().isNotEmpty).toList();
-    return parts.isEmpty ? 'Estudiante' : parts.join(' ');
+    if (parts.isEmpty) {
+      return userId.isNotEmpty ? userId : 'Sin nombre';
+    }
+    return parts.join(' ');
+  }
+
+  String userEmail(String userId) {
+    final u = _users[userId];
+    return u?.email ?? '';
+  }
+
+  User? cachedUser(String userId) => _users[userId];
+
+  Future<User?> ensureUserLoaded(String userId) async {
+    if (userId.isEmpty) return null;
+    final existing = _users[userId];
+    if (existing != null) return existing;
+    try {
+      final fetched = await _userRepository.getUserById(userId);
+      if (fetched != null) {
+        _users[userId] = fetched;
+      }
+      return fetched;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _handleAuthError() async {
-    // Intentar renovar el token automáticamente
     final authController = Get.find<AuthController>();
     final success = await authController.handle401Error();
 
     if (success) {
-      // Token renovado, reintentar cargar datos
       errorMessage.value = 'Sesión renovada, reintentando...';
-      await loadMyEnrollments(); // Reintentar la operación
+      await loadMyEnrollments();
     } else {
-      // No se pudo renovar, limpiar datos
       myEnrollments.clear();
       errorMessage.value =
           'Sesión expirada. Por favor, inicia sesión nuevamente.';

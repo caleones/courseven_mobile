@@ -1,6 +1,6 @@
 import '../../domain/models/membership.dart';
 
-/// Modelo de datos para Membership con serialización JSON
+
 class MembershipModel extends Membership {
   const MembershipModel({
     required super.id,
@@ -10,14 +10,14 @@ class MembershipModel extends Membership {
     super.isActive,
   });
 
-  /// Crear MembershipModel desde JSON
+  
   factory MembershipModel.fromJson(Map<String, dynamic> json) {
     return MembershipModel(
       id: json['_id'] as String,
       userId: json['user_id'] as String,
       groupId: json['group_id'] as String,
-      // Nota: en la DB actual la columna está mal escrita como "joinet_at".
-      // Soportamos ambas llaves para compatibilidad hacia atrás/adelante.
+      
+      
       joinedAt: (json['joined_at'] ?? json['joinet_at']) != null
           ? DateTime.parse((json['joined_at'] ?? json['joinet_at']) as String)
           : DateTime.now(),
@@ -25,20 +25,20 @@ class MembershipModel extends Membership {
     );
   }
 
-  /// Convertir MembershipModel a JSON
+  
   Map<String, dynamic> toJson() {
-    // Para inserciones, usamos únicamente la clave con el typo actual de la DB (joinet_at)
+    
     final when = joinedAt.toIso8601String();
     return {
       '_id': id,
       'user_id': userId,
       'group_id': groupId,
-      'joinet_at': when, // compat con esquema actual
+      'joinet_at': when, 
       'is_active': isActive,
     };
   }
 
-  /// Crear copia con cambios
+  
   MembershipModel copyWith({
     String? id,
     String? userId,
@@ -55,7 +55,7 @@ class MembershipModel extends Membership {
     );
   }
 
-  /// Convertir a entidad de dominio
+  
   Membership toEntity() {
     return Membership(
       id: id,

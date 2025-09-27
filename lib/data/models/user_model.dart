@@ -1,6 +1,6 @@
 import '../../domain/models/user.dart';
 
-/// Modelo de datos para User con serialización JSON
+
 class UserModel extends User {
   const UserModel({
     required super.id,
@@ -13,7 +13,7 @@ class UserModel extends User {
     super.isActive,
   });
 
-  /// Crear UserModel desde JSON
+  
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['_id'] as String,
@@ -29,7 +29,7 @@ class UserModel extends User {
     );
   }
 
-  /// Convertir UserModel a JSON
+  
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -43,7 +43,7 @@ class UserModel extends User {
     };
   }
 
-  /// Crear copia con cambios
+  
   UserModel copyWith({
     String? id,
     String? studentId,
@@ -66,7 +66,7 @@ class UserModel extends User {
     );
   }
 
-  /// Convertir a entidad de dominio
+  
   User toEntity() {
     return User(
       id: id,

@@ -2,7 +2,7 @@ import '../models/assessment.dart';
 import '../models/peer_review_summaries.dart';
 
 abstract class AssessmentRepository {
-  // Basic fetches
+  
   Future<List<Assessment>> getAssessmentsByActivity(String activityId);
   Future<List<Assessment>> getAssessmentsByGroup(String groupId);
   Future<List<Assessment>> getAssessmentsByReviewer(
@@ -15,7 +15,7 @@ abstract class AssessmentRepository {
       required String reviewerId,
       required String studentId});
 
-  // Extended helpers
+  
   Future<List<Assessment>> getAssessmentsForStudentAcrossActivities(
       List<String> activityIds, String studentId);
   Future<List<String>> listPendingPeerIds({
@@ -25,7 +25,7 @@ abstract class AssessmentRepository {
     required List<String> groupMemberIds,
   });
 
-  // Aggregations
+  
   Future<ActivityPeerReviewSummary> computeActivitySummary(String activityId);
   Future<CoursePeerReviewSummary> computeCourseSummary(
       List<String> activityIds);

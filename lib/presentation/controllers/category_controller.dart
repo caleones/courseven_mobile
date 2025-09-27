@@ -13,7 +13,7 @@ class CategoryController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
   final createdCategory = Rxn<Category>();
-  final categoriesByCourse = <String, List<Category>>{}.obs; // courseId -> list
+  final categoriesByCourse = <String, List<Category>>{}.obs; 
 
   AuthController get _auth => Get.find<AuthController>();
   String? get currentTeacherId => _auth.currentUser?.id;
@@ -54,7 +54,7 @@ class CategoryController extends GetxController {
       );
       final cat = await _createCategoryUseCase(params);
       createdCategory.value = cat;
-      // refresh cache
+      
       await loadByCourse(courseId);
       return cat;
     } catch (e) {

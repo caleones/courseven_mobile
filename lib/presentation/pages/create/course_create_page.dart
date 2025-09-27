@@ -15,7 +15,7 @@ class _CourseCreatePageState extends State<CourseCreatePage> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
-  // thumbnail y video fueron removidos del modelo
+  
 
   late final CourseController courseController;
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import '../../../core/config/app_routes.dart';
 import '../../controllers/category_controller.dart';
 import '../../controllers/group_controller.dart';
@@ -9,6 +10,9 @@ import '../../controllers/course_controller.dart';
 import '../../widgets/course/course_ui_components.dart';
 import '../../widgets/inactive_gate.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/revalidation_mixin.dart';
+import '../../../core/utils/refresh_manager.dart';
+import '../../../core/utils/app_event_bus.dart';
 
 class CategoryDetailPage extends StatefulWidget {
   const CategoryDetailPage({super.key});
@@ -16,7 +20,8 @@ class CategoryDetailPage extends StatefulWidget {
   State<CategoryDetailPage> createState() => _CategoryDetailPageState();
 }
 
-class _CategoryDetailPageState extends State<CategoryDetailPage> {
+class _CategoryDetailPageState extends State<CategoryDetailPage>
+    with RevalidationMixin {
   late final String courseId;
   late final String categoryId;
   final categoryController = Get.find<CategoryController>();
@@ -24,6 +29,8 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
   final membershipController = Get.find<MembershipController>();
   final activityController = Get.find<ActivityController>();
   final courseController = Get.find<CourseController>();
+  late final AppEventBus _bus;
+  StreamSubscription<Object>? _sub;
 
   @override
   void initState() {
@@ -31,18 +38,79 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
     final args = Get.arguments as Map<String, dynamic>?;
     courseId = args?['courseId'] ?? '';
     categoryId = args?['categoryId'] ?? '';
+    _bus = Get.find<AppEventBus>();
+    _sub = _bus.stream.listen((event) {
+      
+      if (event is EnrollmentJoinedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+      if (event is MembershipJoinedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+      if (event is ActivityChangedEvent && event.courseId == courseId) {
+        revalidate(force: true);
+      }
+    });
     if (courseId.isNotEmpty) {
-      categoryController.loadByCourse(courseId).then((_) {
-        activityController.loadForCourse(courseId); // ensure activities cache
-        groupController.loadByCourse(courseId).then((groups) {
-          final catGroups =
-              groups.where((g) => g.categoryId == categoryId).toList();
-          final ids = catGroups.map((g) => g.id).toList();
+      
+      categoryController.loadByCourse(courseId);
+      activityController.loadForCourse(courseId);
+      groupController.loadByCourse(courseId).then((groups) {
+        final ids = groups
+            .where((g) => g.categoryId == categoryId)
+            .map((g) => g.id)
+            .toList(growable: false);
+        if (ids.isNotEmpty) {
+          membershipController.preloadMembershipsForGroups(ids);
           membershipController.preloadMemberCountsForGroups(ids);
-          if (mounted) setState(() {});
-        });
+        }
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Duration? get pollingInterval => const Duration(seconds: 60);
+
+  @override
+  Future<void> revalidate({bool force = false}) async {
+    if (courseId.isEmpty) return;
+    final refresh = Get.find<RefreshManager>();
+    await Future.wait([
+      refresh.run(
+        key: 'categories:course:$courseId',
+        ttl: const Duration(seconds: 45),
+        action: () => categoryController.loadByCourse(courseId),
+        force: force,
+      ),
+      refresh.run(
+        key: 'activities:course:$courseId',
+        ttl: const Duration(seconds: 20),
+        action: () => activityController.loadForCourse(courseId),
+        force: force,
+      ),
+      refresh.run(
+        key: 'groups:course:$courseId:category:$categoryId',
+        ttl: const Duration(seconds: 45),
+        action: () async {
+          final groups = await groupController.loadByCourse(courseId);
+          final ids = groups
+              .where((g) => g.categoryId == categoryId)
+              .map((g) => g.id)
+              .toList(growable: false);
+          if (ids.isNotEmpty) {
+            await membershipController.preloadMembershipsForGroups(ids);
+            await membershipController.preloadMemberCountsForGroups(ids);
+          }
+        },
+        force: force,
+      ),
+    ]);
   }
 
   @override
@@ -89,7 +157,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
             title: 'Actividades',
             count: _activityCountForCategory(),
             leadingIcon: Icons.task_outlined,
-            child: _activitiesPreview(isTeacher, isInactiveCourse),
+            child: _activitiesGated(isTeacher, isInactiveCourse),
           ),
         ],
       );
@@ -161,33 +229,48 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                             .colorScheme
                             .onSurface
                             .withOpacity(.75))),
-                const SizedBox(height: 6),
-                Text('Crea la primera para esta categoría',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(.55))),
+                
               ],
             ),
           ),
           const SizedBox(height: 14),
-          DualActionButtons(
-            primaryLabel: 'CREAR ACTIVIDAD',
-            secondaryLabel: 'VER TODAS',
-            primaryIcon: Icons.add_task,
-            secondaryIcon: Icons.visibility,
-            primaryEnabled: isTeacher && !isInactiveCourse,
-            onPrimary: () => Get.toNamed(AppRoutes.activityCreate, arguments: {
-              'courseId': courseId,
-              'categoryId': categoryId,
-              'lockCourse': true,
-              'lockCategory': true
-            }),
-            onSecondary: () => Get.toNamed(AppRoutes.categoryActivities,
-                arguments: {'courseId': courseId, 'categoryId': categoryId}),
-          ),
+          if (isTeacher) ...[
+            DualActionButtons(
+              primaryLabel: 'NUEVA',
+              secondaryLabel: 'VER TODAS',
+              primaryIcon: Icons.add_task,
+              secondaryIcon: Icons.visibility,
+              primaryEnabled: !isInactiveCourse,
+              onPrimary: () =>
+                  Get.toNamed(AppRoutes.activityCreate, arguments: {
+                'courseId': courseId,
+                'categoryId': categoryId,
+                'lockCourse': true,
+                'lockCategory': true
+              }),
+              onSecondary: () => Get.toNamed(AppRoutes.categoryActivities,
+                  arguments: {'courseId': courseId, 'categoryId': categoryId}),
+            ),
+          ] else ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.visibility),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.successGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => Get.toNamed(AppRoutes.categoryActivities,
+                    arguments: {
+                      'courseId': courseId,
+                      'categoryId': categoryId
+                    }),
+                label: const Text('VER TODAS'),
+              ),
+            ),
+          ],
         ],
       );
     }
@@ -203,26 +286,98 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                   arguments: {'courseId': courseId, 'activityId': a.id}),
             )),
         const SizedBox(height: 4),
-        DualActionButtons(
-          primaryLabel: 'CREAR ACTIVIDAD',
-          secondaryLabel: 'VER TODAS',
-          primaryIcon: Icons.add_task,
-          secondaryIcon: Icons.visibility,
-          primaryEnabled: isTeacher && !isInactiveCourse,
-          onPrimary: () => Get.toNamed(AppRoutes.activityCreate, arguments: {
-            'courseId': courseId,
-            'categoryId': categoryId,
-            'lockCourse': true,
-            'lockCategory': true
-          }),
-          onSecondary: () => Get.toNamed(AppRoutes.categoryActivities,
-              arguments: {'courseId': courseId, 'categoryId': categoryId}),
-        ),
+        if (isTeacher) ...[
+          DualActionButtons(
+            primaryLabel: 'NUEVA',
+            secondaryLabel: 'VER TODAS',
+            primaryIcon: Icons.add_task,
+            secondaryIcon: Icons.visibility,
+            primaryEnabled: !isInactiveCourse,
+            onPrimary: () => Get.toNamed(AppRoutes.activityCreate, arguments: {
+              'courseId': courseId,
+              'categoryId': categoryId,
+              'lockCourse': true,
+              'lockCategory': true
+            }),
+            onSecondary: () => Get.toNamed(AppRoutes.categoryActivities,
+                arguments: {'courseId': courseId, 'categoryId': categoryId}),
+          ),
+        ] else ...[
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.visibility),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onPressed: () => Get.toNamed(AppRoutes.categoryActivities,
+                  arguments: {'courseId': courseId, 'categoryId': categoryId}),
+              label: const Text('VER TODAS'),
+            ),
+          ),
+        ],
       ],
     );
   }
 
+  
+  Widget _activitiesGated(bool isTeacher, bool isInactiveCourse) {
+    if (isTeacher) {
+      return _activitiesPreview(true, isInactiveCourse);
+    }
+    
+    final groups = groupController.groupsByCourse[courseId]
+            ?.where((g) => g.categoryId == categoryId)
+            .toList() ??
+        [];
+    final groupIds = groups.map((g) => g.id).toList();
+    final myJoined = membershipController.myGroupIds;
+    final isMember = groupIds.any(myJoined.contains);
+    if (!isMember) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 22),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: AppTheme.goldAccent.withOpacity(.35), width: 1),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lock_outline,
+                    color: AppTheme.goldAccent.withOpacity(.8)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Debes unirte a un grupo de esta categoría para ver sus actividades.',
+                    style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(.75)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+    return _activitiesPreview(false, isInactiveCourse);
+  }
+
   Widget _groupsList(List groups, bool isTeacher, bool isInactiveCourse) {
+    
+    final myIds = membershipController.myGroupIds;
+    final hasJoinedInCategory = groups.any((g) => myIds.contains(g.id));
+
     if (groups.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,24 +404,67 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                             .colorScheme
                             .onSurface
                             .withOpacity(.75))),
-                const SizedBox(height: 6),
-                Text('Crea el primero para organizar equipos',
-                    style: TextStyle(
-                        fontSize: 12.5,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(.55))),
+                
               ],
             ),
           ),
           const SizedBox(height: 14),
+          if (isTeacher) ...[
+            DualActionButtons(
+              primaryLabel: 'NUEVO',
+              secondaryLabel: 'VER TODOS',
+              primaryIcon: Icons.group_add,
+              secondaryIcon: Icons.visibility,
+              primaryEnabled: !isInactiveCourse,
+              onPrimary: () => Get.toNamed(AppRoutes.groupCreate, arguments: {
+                'courseId': courseId,
+                'categoryId': categoryId,
+                'lockCourse': true,
+                'lockCategory': true
+              }),
+              onSecondary: () => Get.toNamed(AppRoutes.categoryGroups,
+                  arguments: {'courseId': courseId, 'categoryId': categoryId}),
+            ),
+          ] else ...[
+            
+            if (!hasJoinedInCategory) _fullWidthViewAllButton(),
+          ],
+        ],
+      );
+    }
+    
+    final showList = (!isTeacher && hasJoinedInCategory)
+        ? groups.where((g) => myIds.contains(g.id)).toList()
+        : groups;
+
+    return Column(
+      children: [
+        ...showList.map((g) {
+          final count = membershipController.groupMemberCounts[g.id] ?? 0;
+          return SolidListTile(
+            title: g.name,
+            bodyBelowTitle: Align(
+              alignment: Alignment.centerLeft,
+              child: Pill(
+                text: 'Miembros: $count',
+                icon: Icons.people_outline,
+              ),
+            ),
+            leadingIcon: Icons.group_work,
+            onTap: () => Get.toNamed(AppRoutes.groupDetail, arguments: {
+              'courseId': courseId,
+              'groupId': g.id,
+            }),
+          );
+        }),
+        const SizedBox(height: 4),
+        if (isTeacher) ...[
           DualActionButtons(
-            primaryLabel: 'CREAR GRUPO',
+            primaryLabel: 'NUEVO',
             secondaryLabel: 'VER TODOS',
             primaryIcon: Icons.group_add,
             secondaryIcon: Icons.visibility,
-            primaryEnabled: isTeacher && !isInactiveCourse,
+            primaryEnabled: !isInactiveCourse,
             onPrimary: () => Get.toNamed(AppRoutes.groupCreate, arguments: {
               'courseId': courseId,
               'categoryId': categoryId,
@@ -276,60 +474,30 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
             onSecondary: () => Get.toNamed(AppRoutes.categoryGroups,
                 arguments: {'courseId': courseId, 'categoryId': categoryId}),
           ),
+        ] else ...[
+          if (!hasJoinedInCategory) _fullWidthViewAllButton(),
         ],
-      );
-    }
-    return Column(
-      children: [
-        ...groups.map((g) {
-          final count = membershipController.groupMemberCounts[g.id] ?? 0;
-          return SolidListTile(
-            title: g.name,
-            subtitle: null, // Remove subtitle since we're using pills
-            trailing: _simplePill('Miembros: $count', icon: Icons.people),
-            leadingIcon: Icons.group_work,
-          );
-        }),
-        const SizedBox(height: 4),
-        DualActionButtons(
-          primaryLabel: 'CREAR GRUPO',
-          secondaryLabel: 'VER TODOS',
-          primaryIcon: Icons.group_add,
-          secondaryIcon: Icons.visibility,
-          primaryEnabled: isTeacher && !isInactiveCourse,
-          onPrimary: () => Get.toNamed(AppRoutes.groupCreate, arguments: {
-            'courseId': courseId,
-            'categoryId': categoryId,
-            'lockCourse': true,
-            'lockCategory': true
-          }),
-          onSecondary: () => Get.toNamed(AppRoutes.categoryGroups,
-              arguments: {'courseId': courseId, 'categoryId': categoryId}),
-        ),
       ],
     );
   }
 
-  Widget _simplePill(String text, {IconData? icon}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.goldAccent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: AppTheme.premiumBlack),
-            const SizedBox(width: 4),
-          ],
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.premiumBlack)),
-        ],
+  
+  Widget _fullWidthViewAllButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.visibility),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.successGreen,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        onPressed: () => Get.toNamed(AppRoutes.categoryGroups, arguments: {
+          'courseId': courseId,
+          'categoryId': categoryId,
+        }),
+        label: const Text('VER TODOS'),
       ),
     );
   }

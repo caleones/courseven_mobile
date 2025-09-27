@@ -1,4 +1,4 @@
-/// Entidad de dominio para representar un grupo dentro de una categoría
+
 class Group {
   final String id;
   final String name;
@@ -39,4 +39,4 @@ class Group {
   }
 }
 
-/// Fin
+

@@ -1,36 +1,33 @@
-/// Descripciones i18n de la rúbrica de peer review.
-/// Estructura: rubricCriteria[criterionKey][score]['es'|'en'] -> String
-/// Criterios: punctuality, contributions, commitment, attitude
-const Map<String, Map<int, Map<String, String>>> rubricCriteria = {
+
+
+
+const Map<String, Map<int, String>> rubricCriteria = {
   'punctuality': {
-    2: {'es': 'Frecuentemente tarde', 'en': 'Frequently late'},
-    3: {'es': 'Algunas demoras', 'en': 'Some delays'},
-    4: {'es': 'Casi siempre puntual', 'en': 'Mostly on time'},
-    5: {'es': 'Siempre puntual', 'en': 'Always on time'},
+    2: 'Llegó tarde o faltó a la mayoría de sesiones, afectando al equipo.',
+    3: 'Llegó tarde con frecuencia o se ausentó en varias ocasiones.',
+    4: 'Fue puntual casi siempre y asistió a la mayoría de sesiones.',
+    5: 'Llegó puntualmente a todas las reuniones del equipo.',
   },
   'contributions': {
-    2: {'es': 'Contribuye poco', 'en': 'Contributes little'},
-    3: {'es': 'Contribuye moderado', 'en': 'Moderate contribution'},
-    4: {'es': 'Contribuye consistentemente', 'en': 'Consistent contribution'},
-    5: {
-      'es': 'Contribuye de forma sobresaliente',
-      'en': 'Outstanding contribution'
-    },
+    2: 'Se mantuvo pasivo y casi no aportó ideas ni trabajo al equipo.',
+    3: 'Participó de forma esporádica en discusiones o tareas compartidas.',
+    4: 'Realizó varios aportes útiles, aunque podría ser más propositivo.',
+    5: 'Sus aportes fueron constantes y enriquecieron el trabajo del equipo.',
   },
   'commitment': {
-    2: {'es': 'Compromiso bajo', 'en': 'Low commitment'},
-    3: {'es': 'Compromiso aceptable', 'en': 'Acceptable commitment'},
-    4: {'es': 'Buen compromiso', 'en': 'Good commitment'},
-    5: {'es': 'Compromiso ejemplar', 'en': 'Excellent commitment'},
+    2: 'Mostró poco compromiso con las tareas o roles asignados al equipo.',
+    3: 'A veces bajó su compromiso y eso retrasó el avance del equipo.',
+    4: 'Asumió responsabilidades la mayor parte del tiempo, podría aportar más.',
+    5: 'Se mantuvo siempre comprometido con las tareas y roles del equipo.',
   },
   'attitude': {
-    2: {'es': 'Actitud negativa', 'en': 'Negative attitude'},
-    3: {'es': 'Actitud neutra', 'en': 'Neutral attitude'},
-    4: {'es': 'Actitud positiva', 'en': 'Positive attitude'},
-    5: {'es': 'Actitud sobresaliente', 'en': 'Outstanding attitude'},
+    2: 'Mostró una actitud negativa o indiferente hacia el trabajo del equipo.',
+    3: 'A veces tuvo buena actitud, pero no suficiente para impactar al equipo.',
+    4: 'Generalmente mantuvo una actitud abierta y positiva que ayudó al equipo.',
+    5: 'Siempre mostró actitud positiva y disposición para aportar con calidad.',
   },
 };
 
-String rubricLabel(String criterionKey, int score, {String locale = 'es'}) {
-  return rubricCriteria[criterionKey]?[score]?[locale] ?? '';
+String rubricLabel(String criterionKey, int score) {
+  return rubricCriteria[criterionKey]?[score] ?? '';
 }

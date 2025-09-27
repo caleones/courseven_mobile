@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/course/course_ui_components.dart';
 import '../../controllers/course_controller.dart';
 import '../../controllers/category_controller.dart';
 import '../../controllers/group_controller.dart';
-import '../../../domain/models/category.dart';
 
 class GroupCreatePage extends StatefulWidget {
   const GroupCreatePage({super.key});
@@ -17,16 +17,19 @@ class GroupCreatePage extends StatefulWidget {
 class _GroupCreatePageState extends State<GroupCreatePage> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+
   String? _selectedCourseId;
   String? _selectedCategoryId;
   bool _lockCourse = false;
   bool _lockCategory = false;
 
+  
+  String? _lockedCourseName;
+  String? _lockedCategoryName;
+
   late final CourseController courseController;
   late final CategoryController categoryController;
   late final GroupController groupController;
-
-  List<Category> _categories = const [];
 
   @override
   void initState() {
@@ -34,62 +37,57 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
     courseController = Get.find<CourseController>();
     categoryController = Get.find<CategoryController>();
     groupController = Get.find<GroupController>();
+
     final args = Get.arguments as Map<String, dynamic>?;
-    _selectedCourseId = args?['courseId'] ?? _selectedCourseId;
-    _selectedCategoryId = args?['categoryId'] ?? _selectedCategoryId;
+    _selectedCourseId = args?['courseId'];
+    _selectedCategoryId = args?['categoryId'];
     _lockCourse = args?['lockCourse'] == true;
-    // Solo bloqueamos categoría si se pide explícitamente; crear grupo desde detalle del curso
-    // ya no debe bloquear la categoría (el usuario puede elegir cualquier categoría del curso).
-    final explicitLockCategory = args?['lockCategory'] == true;
-    _lockCategory = explicitLockCategory;
+    _lockCategory = args?['lockCategory'] == true;
+
+    
     courseController.loadMyTeachingCourses();
+    
     if (_selectedCourseId != null && _selectedCourseId!.isNotEmpty) {
-      // Cargar categorías; si está bloqueada y aún no está en cache, insertar placeholder temporal
-      if (_lockCategory &&
-          _selectedCategoryId != null &&
-          _selectedCategoryId!.isNotEmpty) {
-        final cached =
-            categoryController.categoriesByCourse[_selectedCourseId!] ??
-                const [];
-        final exists = cached.any((c) => c.id == _selectedCategoryId);
-        if (!exists) {
-          // placeholder con nombre provisional hasta que llegue la real
-          setState(() {
-            _categories = [
-              Category(
-                id: _selectedCategoryId!,
-                name: 'Cargando categoría...',
-                courseId: _selectedCourseId!,
-                teacherId: courseController.currentTeacherId ?? 'teacher',
-                groupingMethod: 'manual',
-                maxMembersPerGroup: null,
-                description: null,
-                createdAt: DateTime.now(),
-                isActive: true,
-              ),
-            ];
-          });
-        }
-      }
-      categoryController.loadByCourse(_selectedCourseId!).then((cats) {
-        setState(() {
-          _categories = cats;
-        });
+      categoryController.loadByCourse(_selectedCourseId!);
+    }
+
+    
+    if (_lockCourse &&
+        _selectedCourseId != null &&
+        _selectedCourseId!.isNotEmpty) {
+      courseController.getCourseById(_selectedCourseId!).then((c) {
+        if (mounted && c != null) setState(() => _lockedCourseName = c.name);
       });
-    } else {
-      _categories = const [];
+    }
+
+    
+    if (_lockCategory &&
+        _selectedCourseId != null &&
+        _selectedCourseId!.isNotEmpty &&
+        _selectedCategoryId != null &&
+        _selectedCategoryId!.isNotEmpty) {
+      categoryController.loadByCourse(_selectedCourseId!).then((cats) {
+        if (!mounted) return;
+        final cat = cats.firstWhereOrNull((c) => c.id == _selectedCategoryId);
+        if (cat != null) setState(() => _lockedCategoryName = cat.name);
+      });
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+          '[GROUP_CREATE] args=$args lockCourse=$_lockCourse lockCategory=$_lockCategory course=$_selectedCourseId category=$_selectedCategoryId');
     }
   }
 
   Future<void> _onCourseChanged(String? courseId) async {
+    if (courseId == _selectedCourseId) return;
     setState(() {
       _selectedCourseId = courseId;
-      _selectedCategoryId = null;
-      _categories = const [];
+      _selectedCategoryId = null; 
+      _lockedCategoryName = null;
     });
-    if (courseId != null) {
-      final cats = await categoryController.loadByCourse(courseId);
-      setState(() => _categories = cats);
+    if (courseId != null && courseId.isNotEmpty) {
+      await categoryController.loadByCourse(courseId);
     }
   }
 
@@ -149,40 +147,70 @@ class _GroupCreatePageState extends State<GroupCreatePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                Obx(() {
-                  final courses = courseController.teacherCourses;
+                GetX<CourseController>(builder: (ctrl) {
+                  final courses = ctrl.teacherCourses;
+                  final List<DropdownMenuItem<String>> items = [
+                    for (final c in courses)
+                      DropdownMenuItem(value: c.id, child: Text(c.name)),
+                  ];
+                  if (_lockCourse &&
+                      _selectedCourseId != null &&
+                      _selectedCourseId!.isNotEmpty &&
+                      items.every((e) => e.value != _selectedCourseId)) {
+                    items.insert(
+                      0,
+                      DropdownMenuItem(
+                        value: _selectedCourseId,
+                        child: Text(
+                          _lockedCourseName ?? 'Curso seleccionado',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  }
                   return _DropdownField<String>(
                     label: 'Curso',
                     value: _selectedCourseId,
-                    items: [
-                      for (final c in courses)
-                        DropdownMenuItem(value: c.id, child: Text(c.name)),
-                    ],
+                    items: items,
                     onChanged: _lockCourse ? null : _onCourseChanged,
                   );
                 }),
                 const SizedBox(height: 12),
-                _DropdownField<String>(
-                  label: 'Categoría',
-                  value: _selectedCategoryId,
-                  items: [
-                    for (final cat in _categories)
+                Obx(() {
+                  final map = categoryController.categoriesByCourse; 
+                  final _ = map.length; 
+                  final cats = _selectedCourseId != null
+                      ? (map[_selectedCourseId!] ?? const [])
+                      : const [];
+                  final List<DropdownMenuItem<String>> items = [
+                    for (final cat in cats)
+                      DropdownMenuItem(value: cat.id, child: Text(cat.name)),
+                  ];
+                  if (_lockCategory &&
+                      _selectedCategoryId != null &&
+                      _selectedCategoryId!.isNotEmpty &&
+                      items.every((e) => e.value != _selectedCategoryId)) {
+                    items.insert(
+                      0,
                       DropdownMenuItem(
-                        value: cat.id,
+                        value: _selectedCategoryId,
                         child: Text(
-                          // Si se bloqueó explícitamente, mostramos el texto (o placeholder); si no, siempre el nombre.
-                          (_lockCategory && cat.id == _selectedCategoryId)
-                              ? (cat.name == 'Cargando categoría...'
-                                  ? '...'
-                                  : cat.name)
-                              : cat.name,
+                          _lockedCategoryName ?? 'Categoría seleccionada',
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                  ],
-                  onChanged: _lockCategory
-                      ? null
-                      : (v) => setState(() => _selectedCategoryId = v),
-                ),
+                    );
+                  }
+                  return _DropdownField<String>(
+                    label: 'Categoría',
+                    value: _selectedCategoryId,
+                    items: items,
+                    onChanged: _lockCategory
+                        ? null
+                        : (v) => setState(() => _selectedCategoryId = v),
+                    hint: 'Selecciona una categoría',
+                  );
+                }),
                 const SizedBox(height: 12),
                 _TextField(
                   label: 'Nombre del grupo',
@@ -270,11 +298,13 @@ class _DropdownField<T> extends StatelessWidget {
   final T? value;
   final List<DropdownMenuItem<T>> items;
   final void Function(T?)? onChanged;
+  final String? hint;
   const _DropdownField({
     required this.label,
     required this.value,
     required this.items,
     this.onChanged,
+    this.hint,
   });
   @override
   Widget build(BuildContext context) {
@@ -299,6 +329,10 @@ class _DropdownField<T> extends StatelessWidget {
               isExpanded: true,
               value: value,
               items: items,
+              hint: hint != null
+                  ? Text(hint!,
+                      style: TextStyle(color: Theme.of(context).hintColor))
+                  : null,
               onChanged: onChanged,
             ),
           ),

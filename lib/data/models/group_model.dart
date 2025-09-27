@@ -1,6 +1,6 @@
 import '../../domain/models/group.dart';
 
-/// Modelo de datos para Group con serialización JSON
+
 class GroupModel extends Group {
   const GroupModel({
     required super.id,
@@ -12,7 +12,7 @@ class GroupModel extends Group {
     super.isActive,
   });
 
-  /// Crear GroupModel desde JSON
+  
   factory GroupModel.fromJson(Map<String, dynamic> json) {
     return GroupModel(
       id: json['_id'] as String,
@@ -27,7 +27,7 @@ class GroupModel extends Group {
     );
   }
 
-  /// Convertir GroupModel a JSON
+  
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
@@ -40,7 +40,7 @@ class GroupModel extends Group {
     };
   }
 
-  /// Crear copia con cambios
+  
   GroupModel copyWith({
     String? id,
     String? name,
@@ -61,7 +61,7 @@ class GroupModel extends Group {
     );
   }
 
-  /// Convertir a entidad de dominio
+  
   Group toEntity() {
     return Group(
       id: id,

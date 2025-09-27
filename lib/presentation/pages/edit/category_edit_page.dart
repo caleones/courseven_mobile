@@ -86,9 +86,9 @@ class _CategoryEditPageState extends State<CategoryEditPage> {
   @override
   Widget build(BuildContext context) {
     return CoursePageScaffold(
-      header: CourseHeader(
-        title: 'EDITAR CATEGORÍA',
-        subtitle: 'Actualiza la información',
+      header: const CourseHeader(
+        title: 'Editar',
+        subtitle: 'Categoría',
         showEdit: false,
       ),
       sections: [
@@ -154,19 +154,7 @@ class _CategoryEditPageState extends State<CategoryEditPage> {
               const SizedBox(height: 20),
               Obx(() {
                 final loading = categoryController.isLoading.value;
-                return SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: loading ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldAccent,
-                      foregroundColor: AppTheme.premiumBlack,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    child: Text(loading ? 'GUARDANDO…' : 'GUARDAR'),
-                  ),
-                );
+                return SaveButton(onPressed: _submit, loading: loading);
               }),
             ],
           ),

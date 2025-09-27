@@ -1,6 +1,6 @@
 import '../../domain/models/enrollment.dart';
 
-/// Modelo de datos para Enrollment con serialización JSON
+
 class EnrollmentModel extends Enrollment {
   const EnrollmentModel({
     required super.id,
@@ -10,7 +10,7 @@ class EnrollmentModel extends Enrollment {
     super.isActive,
   });
 
-  /// Crear EnrollmentModel desde JSON
+  
   factory EnrollmentModel.fromJson(Map<String, dynamic> json) {
     return EnrollmentModel(
       id: json['_id'] as String,
@@ -23,11 +23,11 @@ class EnrollmentModel extends Enrollment {
     );
   }
 
-  /// Convertir EnrollmentModel a JSON
+  
   Map<String, dynamic> toJson() {
     return {
       '_id': id,
-      // DB usa user_id; mantenemos compatibilidad si alguna migración previa usó student_id
+      
       'user_id': studentId,
       'course_id': courseId,
       'enrolled_at': enrolledAt.toIso8601String(),
@@ -35,7 +35,7 @@ class EnrollmentModel extends Enrollment {
     };
   }
 
-  /// Crear copia con cambios
+  
   EnrollmentModel copyWith({
     String? id,
     String? studentId,
@@ -52,7 +52,7 @@ class EnrollmentModel extends Enrollment {
     );
   }
 
-  /// Convertir a entidad de dominio
+  
   Enrollment toEntity() {
     return Enrollment(
       id: id,

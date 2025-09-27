@@ -18,21 +18,21 @@ class JoinGroupUseCase {
       this.membershipRepository, this.groupRepository, this.categoryRepository);
 
   Future<Membership> call(JoinGroupParams params) async {
-    // Basic checks: not already a member
+    
     final already = await membershipRepository.isUserMemberOfGroup(
         params.userId, params.groupId);
     if (already) {
       throw Exception('Ya eres miembro de este grupo');
     }
 
-    // Load group and category to check method/capacity
+    
     final group = await groupRepository.getGroupById(params.groupId);
     if (group == null) throw Exception('Grupo no encontrado');
 
-    // Load category to check grouping method and capacity
-    // We need categoryId and courseId from group; category must be fetched in UI or repository
-    // Here, we'll assume we can load the category by id via categoryRepository.getCategoryById
-    // but the interface may not expose a direct method; in this codebase it does.
+    
+    
+    
+    
     final category = await categoryRepository.getCategoryById(group.categoryId);
     if (category == null) throw Exception('Categoría no encontrada');
 
@@ -40,7 +40,7 @@ class JoinGroupUseCase {
       throw Exception('No puedes unirte manualmente. Asignación aleatoria');
     }
 
-    // Regla: un usuario no puede pertenecer a más de un grupo de la misma categoría.
+    
     final myMemberships =
         await membershipRepository.getMembershipsByUserId(params.userId);
     for (final m in myMemberships) {
@@ -51,7 +51,7 @@ class JoinGroupUseCase {
       }
     }
 
-    // Capacity check if maxMembersPerGroup provided
+    
     if (category.maxMembersPerGroup != null &&
         category.maxMembersPerGroup! > 0) {
       final members =
@@ -61,7 +61,7 @@ class JoinGroupUseCase {
       }
     }
 
-    // Create membership
+    
     final membership = Membership(
       id: '',
       userId: params.userId,

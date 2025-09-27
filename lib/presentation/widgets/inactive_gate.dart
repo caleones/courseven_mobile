@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// InactiveGate
-/// Reusable wrapper that dims and blocks interaction when [inactive] is true.
-/// Optionally you can override [dimOpacity]. Defaults to 0.55.
+
+
+
 class InactiveGate extends StatelessWidget {
   final bool inactive;
   final Widget child;

@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../core/config/peer_review_rubric.dart';
 
 class RubricCriterionWidget extends StatelessWidget {
-  final String criterionKey; // punctuality, contributions...
+  final String criterionKey; 
   final String title;
   final int? selected;
   final ValueChanged<int> onChanged;
-  final String locale;
 
   const RubricCriterionWidget({
     super.key,
@@ -14,7 +13,6 @@ class RubricCriterionWidget extends StatelessWidget {
     required this.title,
     required this.selected,
     required this.onChanged,
-    this.locale = 'es',
   });
 
   @override
@@ -41,7 +39,7 @@ class RubricCriterionWidget extends StatelessWidget {
 
   Widget _chip(BuildContext context, int score) {
     final isSel = selected == score;
-    final text = rubricLabel(criterionKey, score, locale: locale);
+    final text = rubricLabel(criterionKey, score);
     return ChoiceChip(
       label: Column(
         mainAxisSize: MainAxisSize.min,

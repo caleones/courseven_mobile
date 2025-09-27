@@ -8,15 +8,16 @@ import 'presentation/pages/auth/auth_gate.dart';
 import 'package:courseven/presentation/controllers/theme_controller.dart';
 import 'presentation/widgets/common/starry_background.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/utils/navigation_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   debugPrint('[INIT] Iniciando aplicación CourSEVEN');
 
-  // Configuras las dependencias necesarias para el funcionamiento de la app
+  
   debugPrint('[DEPENDENCIES] Iniciando configuración de dependencias');
-  // Cargas las variables de entorno desde el archivo .env
+  
   try {
     debugPrint('[ENV] Cargando variables de entorno');
     await dotenv.load(fileName: '.env');
@@ -34,7 +35,7 @@ void main() async {
   await DependencyInjection.init();
   debugPrint('[DEPENDENCIES] Dependencias configuradas exitosamente');
 
-  // Inicializas el controlador de tema para manejar modo claro/oscuro
+  
   debugPrint('[THEME] Configurando controlador de tema');
   Get.put(ThemeController());
   debugPrint('[THEME] Controlador de tema configurado');
@@ -60,8 +61,9 @@ class CourSEVENApp extends StatelessWidget {
           themeMode: themeController.themeMode,
           home: const AuthGate(),
           getPages: AppRoutes.routes,
+          navigatorObservers: [routeObserver],
           builder: (context, child) {
-            // Aplica el fondo estelar a todas las pantallas
+            
             return GetBuilder<ThemeController>(
               builder: (tc) => StarryBackground(
                 isDarkMode: tc.isDarkMode,

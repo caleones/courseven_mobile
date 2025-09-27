@@ -10,8 +10,8 @@ class GetCourseActivitiesForStudentParams {
       {required this.courseId, required this.userId});
 }
 
-/// Regla: las actividades se asignan a categorías; un estudiante ve actividades
-/// de categorías en las que tiene membresía (a través de su grupo en esa categoría).
+
+
 class GetCourseActivitiesForStudentUseCase {
   final CourseActivityRepository activityRepository;
   final MembershipRepository membershipRepository;
@@ -25,13 +25,13 @@ class GetCourseActivitiesForStudentUseCase {
 
   Future<List<CourseActivity>> call(
       GetCourseActivitiesForStudentParams p) async {
-    // 1) Traer todas las actividades del curso
+    
     final all = await activityRepository.getActivitiesByCourse(p.courseId);
     if (all.isEmpty) return const [];
 
-    // 2) Encontrar en cuáles categorías tiene membresía el usuario
-    //    (membresías -> grupos -> category_id)
-    //    Optimización simple: traer memberships por usuario, luego por cada membership traer group
+    
+    
+    
     final myMemberships =
         await membershipRepository.getMembershipsByUserId(p.userId);
     if (myMemberships.isEmpty) return const [];
@@ -44,10 +44,10 @@ class GetCourseActivitiesForStudentUseCase {
     }
     if (categoryIds.isEmpty) return const [];
 
-    // 3) Filtrar actividades a solo aquellas cuya category_id ∈ categoryIds
+    
     final visible =
         all.where((a) => categoryIds.contains(a.categoryId)).toList();
-    // orden simple: por fecha de vencimiento más cercana o por createdAt
+    
     visible.sort((a, b) {
       final ad = a.dueDate ?? a.createdAt;
       final bd = b.dueDate ?? b.createdAt;

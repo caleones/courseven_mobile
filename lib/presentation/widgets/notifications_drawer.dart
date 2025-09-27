@@ -20,11 +20,11 @@ class _NotificationsDrawerState extends State<NotificationsDrawer> {
       body: SafeArea(
         child: Column(
           children: [
-            // header del drawer
+            
             _buildHeader(),
-            // filtros
+            
             _buildFilters(),
-            // lista de notificaciones
+            
             Expanded(
               child: _buildNotificationsList(),
             ),
@@ -207,7 +207,7 @@ class _NotificationsDrawerState extends State<NotificationsDrawer> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // icono
+            
             Container(
               width: 50,
               height: 50,
@@ -222,7 +222,7 @@ class _NotificationsDrawerState extends State<NotificationsDrawer> {
               ),
             ),
             const SizedBox(width: 12),
-            // contenido
+            
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

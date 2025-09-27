@@ -76,7 +76,7 @@ class GroupRepositoryImpl implements GroupRepository {
     return rows.map(_fromMap).toList(growable: false);
   }
 
-  // ==== Métodos no requeridos por ahora ====
+  
   @override
   Future<bool> deleteGroup(String groupId) async {
     final token = await _requireToken();
@@ -142,7 +142,7 @@ class GroupRepositoryImpl implements GroupRepository {
     if (updated.isNotEmpty) {
       return _fromMap(updated.first);
     }
-    // fallback: re-read
+    
     final again = await getGroupById(group.id);
     if (again == null) throw Exception('No se pudo leer grupo actualizado');
     return again;

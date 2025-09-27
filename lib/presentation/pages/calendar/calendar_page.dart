@@ -38,7 +38,7 @@ class _CalendarPageState extends State<CalendarPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, // quita el botón de atrás
+        automaticallyImplyLeading: false, 
         title: Text(
           'Calendario',
           style: TextStyle(
@@ -53,13 +53,13 @@ class _CalendarPageState extends State<CalendarPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // header del calendario con navegación
+              
               _buildCalendarHeader(),
               const SizedBox(height: 20),
-              // calendario
+              
               _buildCalendar(),
               const SizedBox(height: 30),
-              // eventos del día seleccionado
+              
               _buildDayEvents(),
             ],
           ),
@@ -155,7 +155,7 @@ class _CalendarPageState extends State<CalendarPage> {
       ),
       child: Column(
         children: [
-          // días de la semana
+          
           Row(
             children: weekDays.map((day) {
               return Expanded(
@@ -173,7 +173,7 @@ class _CalendarPageState extends State<CalendarPage> {
             }).toList(),
           ),
           const SizedBox(height: 10),
-          // días del mes
+          
           ..._buildCalendarWeeks(),
         ],
       ),
@@ -186,17 +186,17 @@ class _CalendarPageState extends State<CalendarPage> {
     int firstWeekday = firstDayOfMonth.weekday;
     int daysInMonth = DateTime(selectedYear, selectedMonth + 1, 0).day;
 
-    // ajustar para que lunes sea 0
+    
     int startOffset = firstWeekday - 1;
 
     List<Widget> days = [];
 
-    // días vacíos al inicio
+    
     for (int i = 0; i < startOffset; i++) {
       days.add(const Expanded(child: SizedBox()));
     }
 
-    // días del mes
+    
     for (int day = 1; day <= daysInMonth; day++) {
       bool isSelected = day == selectedDate.day &&
           selectedMonth == selectedDate.month &&
@@ -249,7 +249,7 @@ class _CalendarPageState extends State<CalendarPage> {
         ),
       );
 
-      // nueva fila cada 7 días
+      
       if ((startOffset + day) % 7 == 0) {
         weeks.add(
           Row(children: List.from(days)),
@@ -258,7 +258,7 @@ class _CalendarPageState extends State<CalendarPage> {
       }
     }
 
-    // completar última fila si es necesario
+    
     if (days.isNotEmpty) {
       while (days.length < 7) {
         days.add(const Expanded(child: SizedBox()));
@@ -308,7 +308,7 @@ class _CalendarPageState extends State<CalendarPage> {
       ),
       child: Row(
         children: [
-          // indicador de color
+          
           Container(
             width: 4,
             height: 50,
@@ -318,7 +318,7 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
           ),
           const SizedBox(width: 12),
-          // información del evento
+          
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,19 +361,19 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  // Verifica si un día específico tiene eventos programados (usando datos estáticos)
+  
   bool _hasEventOnDay(int day) {
     final events = _getAllEvents();
     return events.any((event) => event['day'] == day);
   }
 
-  // Obtiene la lista de eventos para el día seleccionado
+  
   List<Map<String, dynamic>> _getEventsForSelectedDay() {
     final events = _getAllEvents();
     return events.where((event) => event['day'] == selectedDate.day).toList();
   }
 
-  // Datos estáticos de eventos para demostración
+  
   List<Map<String, dynamic>> _getAllEvents() {
     return [
       {

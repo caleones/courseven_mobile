@@ -1,6 +1,6 @@
 import '../../domain/models/course_activity.dart';
 
-/// Modelo de datos para CourseActivity con serialización JSON
+
 class CourseActivityModel extends CourseActivity {
   const CourseActivityModel({
     required super.id,
